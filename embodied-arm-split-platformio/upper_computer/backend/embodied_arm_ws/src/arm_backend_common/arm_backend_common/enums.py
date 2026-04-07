@@ -1,0 +1,65 @@
+from enum import IntEnum
+
+
+class SystemMode(IntEnum):
+    BOOT = 0
+    IDLE = 1
+    PERCEPTION = 2
+    PLAN = 3
+    EXECUTE = 4
+    VERIFY = 5
+    SAFE_STOP = 6
+    FAULT = 7
+
+
+class FaultCode(IntEnum):
+    NONE = 0
+    VISION_TIMEOUT = 1001
+    TARGET_NOT_FOUND = 1002
+    TARGET_STALE = 1003
+    PLAN_FAILED = 2001
+    MOTION_SERVER_UNAVAILABLE = 2002
+    EXECUTE_TIMEOUT = 3001
+    EXECUTE_CANCELED = 3002
+    SERIAL_DISCONNECTED = 4001
+    HARDWARE_LIMIT_TRIGGERED = 4002
+    GRIPPER_FAILURE = 4003
+    ESTOP_TRIGGERED = 4004
+    HARDWARE_NACK = 4005
+    UNKNOWN = 9999
+
+
+class TaskType(IntEnum):
+    PICK_BY_COLOR = 1
+    PICK_BY_QR = 2
+    PICK_AND_PLACE = 3
+    CLEAR_TABLE = 4
+    CLASSIFY = 5
+
+
+class ExecStage(IntEnum):
+    PRE_GRASP = 1
+    DESCEND = 2
+    CLOSE_GRIPPER = 3
+    LIFT = 4
+    MOVE_TO_PLACE = 5
+    OPEN_GRIPPER = 6
+    RETREAT = 7
+    GO_HOME = 8
+
+
+class HardwareCommand(IntEnum):
+    HEARTBEAT = 0x01
+    HOME = 0x02
+    STOP = 0x03
+    SET_JOINTS = 0x04
+    JOG_JOINT = 0x04
+    OPEN_GRIPPER = 0x05
+    CLOSE_GRIPPER = 0x06
+    EXEC_STAGE = 0x07
+    QUERY_STATE = 0x08
+    RESET_FAULT = 0x09
+    ACK = 0x0A
+    NACK = 0x0B
+    REPORT_STATE = 0x0C
+    REPORT_FAULT = 0x0D

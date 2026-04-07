@@ -1,0 +1,9 @@
+run_mode: hardware
+enable_vision: true
+enable_hardware: true
+enable_logger: true
+default_task_timeout_ms: 15000
+target_timeout_sec: 2.0
+plan_timeout_sec: 2.0
+execute_timeout_sec: 6.0
+stale_target_sec: 1.0

@@ -1,0 +1,7 @@
+confidence_threshold: 0.68
+stale_target_sec: 1.2
+verify_timeout_sec: 1.2
+verify_strategy: hardware_only
+clear_table_max_items: 20
+place_profiles:
+  default: default

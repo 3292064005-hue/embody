@@ -1,0 +1,6 @@
+string profile_name
+bool store_image
+---
+bool accepted
+string frame_path
+string message

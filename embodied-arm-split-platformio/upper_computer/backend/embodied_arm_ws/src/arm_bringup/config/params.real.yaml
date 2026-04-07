@@ -1,0 +1,6 @@
+mode: real
+use_rviz: true
+use_hmi: true
+enable_logger: true
+enable_diagnostics: true
+auto_start_task_profile: ""

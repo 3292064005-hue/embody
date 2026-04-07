@@ -1,0 +1,1 @@
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro"><joint name="base_to_tool" type="fixed"><parent link="base_link"/><child link="tool0"/></joint><joint name="tool_to_tcp" type="fixed"><parent link="tool0"/><child link="gripper_tcp"/></joint></robot>

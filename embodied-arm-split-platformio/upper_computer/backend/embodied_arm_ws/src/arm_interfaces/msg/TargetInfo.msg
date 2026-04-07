@@ -1,0 +1,11 @@
+std_msgs/Header header
+string target_id
+string target_type
+string semantic_label
+float32 image_u
+float32 image_v
+float32 table_x
+float32 table_y
+float32 yaw
+float32 confidence
+bool is_valid

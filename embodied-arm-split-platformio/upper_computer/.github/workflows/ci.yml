@@ -1,0 +1,124 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-gateway:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            gateway/requirements.txt
+      - name: Install gateway deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r gateway/requirements.txt -c gateway/constraints.txt pytest
+      - name: Run backend tests
+        run: |
+          mkdir -p artifacts
+          make test-backend | tee artifacts/backend-tests.log
+          make test-backend-active | tee artifacts/backend-active-tests.log
+      - name: Run backend active-profile consistency gate
+        run: |
+          mkdir -p artifacts
+          make test-backend-active-consistency | tee artifacts/backend-active-consistency.log
+      - name: Run gateway tests
+        run: |
+          mkdir -p artifacts
+          make test-gateway | tee artifacts/gateway-tests.log
+      - name: Upload backend and gateway artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-gateway-logs
+          path: |
+            artifacts/*.log
+
+  frontend:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Pin npm version
+        run: npm install -g npm@10.9.2
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/frontend
+          npm run typecheck | tee ../artifacts/frontend/typecheck.log
+      - name: Unit tests
+        working-directory: frontend
+        run: |
+          npm run test:unit -- --runInBand | tee ../artifacts/frontend/unit-tests.log || npm run test:unit | tee -a ../artifacts/frontend/unit-tests.log
+      - name: Build
+        working-directory: frontend
+        run: |
+          npm run build | tee ../artifacts/frontend/build.log
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      - name: Run E2E smoke
+        working-directory: frontend
+        run: |
+          npm run test:e2e | tee ../artifacts/frontend/e2e.log
+      - name: Upload frontend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-artifacts
+          path: |
+            artifacts/frontend/*.log
+            frontend/dist
+
+  ros-humble:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: |
+            gateway/requirements.txt
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: humble
+      - name: Install ROS workspace and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest -r gateway/requirements.txt -c gateway/constraints.txt
+          sudo rosdep init || true
+          rosdep update
+          rosdep install --from-paths backend/embodied_arm_ws/src --ignore-src -r -y --rosdistro humble
+      - name: Build ROS workspace
+        run: |
+          mkdir -p artifacts/ros
+          source /opt/ros/humble/setup.bash
+          cd backend/embodied_arm_ws
+          colcon build --symlink-install --event-handlers console_cohesion+ 2>&1 | tee ../../artifacts/ros/colcon-build.log
+      - name: Run ROS launch smoke, semantic contract, lane semantics, and round-trip integration tests
+        run: |
+          source /opt/ros/humble/setup.bash
+          source backend/embodied_arm_ws/install/setup.bash
+          pytest -q backend/embodied_arm_ws/tests/test_ros_launch_smoke.py backend/embodied_arm_ws/tests/test_runtime_semantic_contracts.py backend/embodied_arm_ws/tests/test_runtime_lane_semantics.py backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py 2>&1 | tee artifacts/ros/ros-smoke.log
+      - name: Upload ROS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ros-humble-artifacts
+          path: |
+            artifacts/ros/*.log
+            backend/embodied_arm_ws/log

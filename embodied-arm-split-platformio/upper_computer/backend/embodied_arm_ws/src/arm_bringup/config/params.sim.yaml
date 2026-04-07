@@ -1,0 +1,6 @@
+mode: sim
+use_rviz: false
+use_hmi: false
+enable_logger: true
+enable_diagnostics: true
+auto_start_task_profile: demo_day

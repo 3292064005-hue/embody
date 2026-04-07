@@ -1,0 +1,11 @@
+std_msgs/Header header
+uint8 system_mode
+string current_task_id
+string current_stage
+bool hardware_ready
+bool motion_ready
+bool calibration_ready
+bool vision_ready
+bool emergency_stop
+uint32 active_fault_code
+string message

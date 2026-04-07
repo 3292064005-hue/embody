@@ -1,0 +1,8 @@
+string axis
+float32 delta
+---
+bool accepted
+string message
+---
+string stage
+float32 progress

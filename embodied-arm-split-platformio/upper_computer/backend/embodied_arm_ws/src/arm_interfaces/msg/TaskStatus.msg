@@ -1,0 +1,12 @@
+builtin_interfaces/Time stamp
+string task_id
+string task_type
+string stage
+string target_id
+string place_profile
+uint8 retry_count
+uint8 max_retry
+bool active
+bool cancel_requested
+string message
+float32 progress

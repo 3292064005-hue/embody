@@ -1,0 +1,18 @@
+string task_id
+string target_type
+string target_id
+float32 target_x
+float32 target_y
+float32 target_yaw
+string place_profile
+uint8 max_retry
+---
+bool success
+uint32 result_code
+string message
+float32 total_time
+---
+string stage
+float32 progress
+string message
+uint8 retry_count

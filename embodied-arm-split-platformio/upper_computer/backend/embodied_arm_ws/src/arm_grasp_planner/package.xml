@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>arm_grasp_planner</name>
+  <version>0.2.0</version>
+  <description>Runtime grasp candidate generation and selection package.</description>
+  <maintainer email="dev@example.com">OpenAI</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <depend>rclpy</depend>
+  <depend>arm_common</depend>
+  <depend>arm_interfaces</depend>
+  <depend>arm_backend_common</depend>
+  <depend>std_msgs</depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

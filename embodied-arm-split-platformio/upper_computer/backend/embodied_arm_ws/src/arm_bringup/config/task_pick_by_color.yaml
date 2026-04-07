@@ -1,0 +1,9 @@
+confidence_threshold: 0.72
+stale_target_sec: 1.0
+verify_timeout_sec: 1.0
+verify_strategy: hardware_or_target_lost
+clear_table_max_items: 20
+place_profiles:
+  red: bin_red
+  blue: bin_blue
+  green: bin_green

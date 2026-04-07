@@ -1,0 +1,8 @@
+bool ready
+bool managed_lifecycle
+bool autostart_complete
+bool all_active
+string current_layer
+string blocking_node
+string terminal_fault_reason
+string raw_json

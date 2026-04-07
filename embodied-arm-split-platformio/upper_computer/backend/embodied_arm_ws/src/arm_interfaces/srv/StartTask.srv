@@ -1,0 +1,9 @@
+string task_type
+string target_selector
+string place_profile
+bool auto_retry
+uint8 max_retry
+---
+bool accepted
+string task_id
+string message

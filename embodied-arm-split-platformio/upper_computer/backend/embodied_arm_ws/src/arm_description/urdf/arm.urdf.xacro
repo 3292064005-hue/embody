@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="embodied_arm">
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <xacro:arg name="enable_camera_mount" default="true"/>
+  <xacro:arg name="enable_gripper" default="true"/>
+  <xacro:arg name="robot_ns" default="arm"/>
+  <xacro:include filename="$(find arm_description)/urdf/materials.xacro"/>
+  <xacro:include filename="$(find arm_description)/urdf/links.xacro"/>
+  <xacro:include filename="$(find arm_description)/urdf/joints.xacro"/>
+  <xacro:include filename="$(find arm_description)/urdf/transmissions.xacro"/>
+</robot>

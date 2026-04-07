@@ -1,0 +1,17 @@
+place_profiles:
+  default:
+    x: 0.20
+    y: 0.00
+    yaw: 0.0
+  bin_red:
+    x: 0.25
+    y: 0.12
+    yaw: 0.0
+  bin_blue:
+    x: 0.25
+    y: -0.12
+    yaw: 0.0
+  bin_green:
+    x: 0.22
+    y: 0.02
+    yaw: 0.0

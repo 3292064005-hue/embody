@@ -1,0 +1,12 @@
+std_msgs/Header header
+bool stm32_online
+bool esp32_online
+bool estop_pressed
+bool home_ok
+bool gripper_ok
+bool motion_busy
+bool limit_triggered
+float32[] joint_position
+float32[] joint_velocity
+uint32 hardware_fault_code
+string raw_status

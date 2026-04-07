@@ -1,0 +1,12 @@
+joint_limits:
+  min: [-3.14, -1.57, -1.57, -1.57, -1.57]
+  max: [3.14, 1.57, 1.57, 1.57, 1.57]
+workspace:
+  x: [0.05, 0.35]
+  y: [-0.20, 0.20]
+max_velocity: 0.5
+max_acceleration: 0.8
+max_gripper_force: 0.4
+stage_timeout:
+  plan: 2000
+  execute: 4000

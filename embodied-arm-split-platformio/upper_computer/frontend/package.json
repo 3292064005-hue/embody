@@ -1,0 +1,38 @@
+{
+  "name": "embodied-arm-hmi",
+  "version": "3.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "build": "node ./node_modules/vue-tsc/index.js --noEmit && node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "typecheck": "node ./node_modules/vue-tsc/index.js --noEmit",
+    "test": "npm run test:unit",
+    "test:unit": "node ./node_modules/vitest/vitest.mjs run --pool=threads --maxWorkers=1",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "node ./scripts/run-playwright-e2e.mjs"
+  },
+  "dependencies": {
+    "axios": "1.13.2",
+    "echarts": "^5.6.0",
+    "element-plus": "^2.9.7",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.13.10",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^2.2.8"
+  },
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=22 <23",
+    "npm": "10.9.2"
+  }
+}

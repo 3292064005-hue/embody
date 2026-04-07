@@ -1,0 +1,4 @@
+profiles:
+  default:
+    reliability: reliable
+    durability: volatile

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>arm_task_orchestrator</name>
+  <version>0.2.0</version>
+  <description>Task orchestration for embodied arm.</description>
+  <maintainer email="dev@example.com">OpenAI</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>arm_common</depend>
+  <depend>arm_interfaces</depend>
+  <depend>arm_backend_common</depend>
+  <depend>arm_motion_executor</depend>
+  <depend>arm_motion_planner</depend>
+  <depend>arm_hardware_bridge</depend>
+  <depend>arm_perception</depend>
+  <depend>arm_safety_supervisor</depend>
+      <export><build_type>ament_python</build_type></export>
+</package>
