@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>arm_motion_executor</name>
+  <version>0.1.0</version>
+  <description>Motion execution integration package for embodied arm runtime.</description>
+  <maintainer email="dev@example.com">OpenAI</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>python3</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>arm_common</exec_depend>
+  <exec_depend>arm_interfaces</exec_depend>
+  <exec_depend>arm_backend_common</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

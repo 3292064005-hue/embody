@@ -1,0 +1,18 @@
+version: 1
+root: pick_place_root
+nodes:
+  pick_place_root:
+    type: sequence
+    children:
+      - ensure_planner_ready
+      - dispatch_plan
+      - dispatch_execute
+  ensure_planner_ready:
+    type: condition
+    check: motion_planner
+  dispatch_plan:
+    type: action
+    event: plan_requested
+  dispatch_execute:
+    type: action
+    event: execution_requested

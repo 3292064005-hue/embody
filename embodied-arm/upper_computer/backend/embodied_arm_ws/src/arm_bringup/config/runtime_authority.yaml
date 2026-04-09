@@ -1,0 +1,501 @@
+schema_version: 2
+product_lines:
+  preview:
+    label: Preview / Contract Only
+    description: 仅用于能力验证、链路联调与只读工作台。
+    task_workbench_visible: false
+    task_execution_interactive: false
+    runtime_badge: PREVIEW
+    promotion_controlled: false
+  validated_sim:
+    label: Validated Simulation
+    description: 已验证仿真 authoritative lane，可进入正式任务工作台。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    runtime_badge: VALIDATED_SIM
+    promotion_controlled: false
+  validated_live:
+    label: Validated Live Hardware
+    description: 仅当 validated_live backbone、target-runtime gate、HIL gate 与 release
+      checklist 全部通过时，才开放真机任务工作台。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    fail_closed_task_workbench_visible: false
+    fail_closed_task_execution_interactive: false
+    runtime_badge: VALIDATED_LIVE
+    promotion_controlled: true
+planning_backends:
+  validated_sim_default:
+    plugin: deterministic_simulation
+    declared: true
+    capability_mode: validated_sim
+    planner_plugin: pilz_industrial_motion_planner
+    scene_source: runtime_scene_service
+    workspace_bounds:
+      min_x: -0.35
+      max_x: 0.35
+      min_y: -0.35
+      max_y: 0.35
+      min_z: 0.02
+      max_z: 0.45
+      min_yaw: -3.14159
+      max_yaw: 3.14159
+      approach_offset_z: 0.08
+    named_poses:
+      home:
+        joint_1: 0.0
+        joint_2: 0.0
+        joint_3: 0.0
+        joint_4: 0.0
+        joint_5: 0.0
+        joint_6: 0.0
+      stow:
+        joint_1: 0.0
+        joint_2: -0.35
+        joint_3: 0.7
+        joint_4: 0.0
+        joint_5: 0.55
+        joint_6: 0.0
+      inspect:
+        joint_1: 0.0
+        joint_2: -0.1
+        joint_3: 0.35
+        joint_4: 0.0
+        joint_5: 0.2
+        joint_6: 0.0
+    metadata:
+      executionModel: validated_simulation_runtime
+  validated_live_bridge:
+    plugin: http_bridge
+    declared: false
+    capability_mode: validated_live
+    planner_plugin: moveit_http_bridge
+    scene_source: runtime_scene_service
+    url: http://127.0.0.1:8088/plan
+    timeout_sec: 1.5
+    metadata:
+      executionModel: validated_live_bridge
+promotion_tiers:
+  validated_sim:
+    promoted: true
+    receipt_id: validated-sim-baseline
+    checked_by: repository-ci
+    checked_at: '2026-04-08T00:00:00Z'
+    required_evidence:
+    - backend-active
+    - gateway
+    - contract-artifacts
+    - runtime-contracts
+    evidence:
+    - backend-active
+    - gateway
+    - contract-artifacts
+    - runtime-contracts
+  validated_live:
+    promoted: false
+    receipt_id: ''
+    checked_by: ''
+    checked_at: ''
+    required_evidence:
+    - validated_live_backbone_declared
+    - target_runtime_gate_passed
+    - hil_gate_passed
+    - release_checklist_signed
+    evidence: []
+    reason: fail_closed_until_validated_live_backbone_and_release_gates_are_committed
+runtime_lanes:
+  sim_preview:
+    intended_product_line: preview
+    simulate_hardware: true
+    camera_source: mock
+    esp32_mode: sim
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: false
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  sim_perception_preview:
+    intended_product_line: preview
+    simulate_hardware: true
+    camera_source: mock
+    esp32_mode: sim
+    include_mock_targets: false
+    mock_camera_profile: realistic_empty
+    enable_esp32_gateway: false
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  real_preview:
+    intended_product_line: preview
+    simulate_hardware: false
+    camera_source: topic
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  hybrid_preview:
+    intended_product_line: preview
+    simulate_hardware: true
+    camera_source: topic
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: realistic_empty
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: true
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  hw_preview:
+    intended_product_line: preview
+    simulate_hardware: false
+    camera_source: mock
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  full_demo_preview:
+    intended_product_line: preview
+    simulate_hardware: true
+    camera_source: mock
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: true
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_bridge
+    execution_backbone: protocol_bridge
+    execution_backbone_declared: true
+    enable_ros2_control: false
+  sim_authoritative:
+    intended_product_line: validated_sim
+    simulate_hardware: true
+    camera_source: mock
+    esp32_mode: sim
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: false
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: validated_sim
+    planning_authoritative: true
+    planning_backend_name: validated_sim_runtime
+    planning_backend_profile: validated_sim_default
+    scene_provider_mode: runtime_service
+    grasp_provider_mode: runtime_service
+    esp32_stream_semantic: synthetic_frame
+    esp32_frame_ingress_live: true
+    frame_ingress_mode: synthetic_frame_stream
+    forward_hardware_commands: true
+    hardware_execution_mode: authoritative_simulation
+    execution_backbone: dispatcher
+    execution_backbone_declared: true
+    enable_ros2_control: false
+    stm32_authoritative_simulation: true
+  full_demo_authoritative:
+    intended_product_line: validated_sim
+    simulate_hardware: true
+    camera_source: mock
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: true
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: validated_sim
+    planning_authoritative: true
+    planning_backend_name: validated_sim_runtime
+    planning_backend_profile: validated_sim_default
+    scene_provider_mode: runtime_service
+    grasp_provider_mode: runtime_service
+    esp32_stream_semantic: synthetic_frame
+    esp32_frame_ingress_live: true
+    frame_ingress_mode: synthetic_frame_stream
+    forward_hardware_commands: true
+    hardware_execution_mode: authoritative_simulation
+    execution_backbone: dispatcher
+    execution_backbone_declared: true
+    enable_ros2_control: false
+    stm32_authoritative_simulation: true
+  real_candidate:
+    intended_product_line: preview
+    simulate_hardware: false
+    camera_source: topic
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: true
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: validated_live
+    planning_authoritative: true
+    planning_backend_name: validated_live_bridge
+    planning_backend_profile: validated_live_bridge
+    scene_provider_mode: runtime_service
+    grasp_provider_mode: runtime_service
+    esp32_stream_semantic: live_frame_summary
+    esp32_frame_ingress_live: true
+    frame_ingress_mode: live_camera_stream
+    forward_hardware_commands: true
+    hardware_execution_mode: ros2_control_live
+    execution_backbone: ros2_control
+    execution_backbone_declared: false
+    enable_ros2_control: true
+    stm32_authoritative_simulation: false
+    validated_live_backbone: validated_live
+  real_validated_live:
+    intended_product_line: validated_live
+    simulate_hardware: false
+    camera_source: topic
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: true
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: validated_live
+    planning_authoritative: true
+    planning_backend_name: validated_live_bridge
+    planning_backend_profile: validated_live_bridge
+    scene_provider_mode: runtime_service
+    grasp_provider_mode: runtime_service
+    esp32_stream_semantic: live_frame_summary
+    esp32_frame_ingress_live: true
+    frame_ingress_mode: live_camera_stream
+    forward_hardware_commands: true
+    hardware_execution_mode: ros2_control_live
+    execution_backbone: ros2_control
+    execution_backbone_declared: false
+    enable_ros2_control: true
+    stm32_authoritative_simulation: false
+    validated_live_backbone: validated_live
+task_templates:
+- id: pick-red
+  name: 抓取红色目标
+  description: 单目标抓取并放置到红色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  resolved_place_profiles:
+    red: bin_red
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+- id: pick-blue
+  name: 抓取蓝色目标
+  description: 单目标抓取并放置到蓝色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: blue
+  allowed_target_categories:
+  - blue
+  resolved_place_profiles:
+    blue: bin_blue
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+- id: pick-green
+  name: 抓取绿色目标
+  description: 单目标抓取并放置到绿色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: green
+  allowed_target_categories:
+  - green
+  resolved_place_profiles:
+    green: bin_green
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合绿色类目标的单目标搬运验收。
+- id: sort-color
+  name: 按颜色分拣
+  description: 按颜色选择器进行分拣，红/蓝/绿目标分别落入对应料区。
+  frontend_task_type: sort_by_color
+  backend_task_type: PICK_BY_COLOR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  - blue
+  - green
+  resolved_place_profiles:
+    red: bin_red
+    blue: bin_blue
+    green: bin_green
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  operator_hint: 需要颜色目标检测链路稳定。
+- id: sort-qr
+  name: 二维码识别搬运
+  description: 根据二维码选择目标，当前统一落到默认料区，不宣称多料区二维码分拣能力。
+  frontend_task_type: sort_by_qr
+  backend_task_type: PICK_BY_QR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: qr_a
+  allowed_target_categories:
+  - qr_a
+  - qr_b
+  - qr_c
+  resolved_place_profiles:
+    qr_a: default
+    qr_b: default
+    qr_c: default
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  operator_hint: 当前二维码任务仅保证识别触发与默认料区搬运语义。
+- id: clear-table
+  name: 清台任务
+  description: 持续抓取当前工作台上全部可执行目标并放置到默认料区。
+  frontend_task_type: clear_table
+  backend_task_type: CLEAR_TABLE
+  task_profile_path: task_clear_table.yaml
+  allowed_target_categories: []
+  resolved_place_profiles:
+    default: default
+  risk_level: high
+  required_runtime_tier: validated_sim
+  operator_hint: 连续搬运任务，对感知、规划与执行链路稳定性要求更高。
+validated_live_backbones:
+  validated_live:
+    lane: real_validated_live
+    planning_backend_profile: validated_live_bridge
+    requirements:
+      camera_source: topic
+      frame_ingress_mode: live_camera_stream
+      esp32_frame_ingress_live: true
+      scene_provider_mode: runtime_service
+      grasp_provider_mode: runtime_service
+      forward_hardware_commands: true
+      execution_backbone: ros2_control
+      execution_backbone_declared: true
+      enable_ros2_control: true

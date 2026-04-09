@@ -1,0 +1,111 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+schema_version: 2
+product_lines:
+  preview:
+    label: Preview / Contract Only
+    description: 仅用于能力验证、链路联调与只读工作台。
+    task_workbench_visible: false
+    task_execution_interactive: false
+  validated_sim:
+    label: Validated Simulation
+    description: 已验证仿真 authoritative lane，可进入正式任务工作台。
+    task_workbench_visible: true
+    task_execution_interactive: true
+  validated_live:
+    label: Validated Live Hardware
+    description: 仅当 validated_live backbone、target-runtime gate、HIL gate 与 release
+      checklist 全部通过时，才开放真机任务工作台。
+    task_workbench_visible: false
+    task_execution_interactive: false
+templates:
+- id: pick-red
+  name: 抓取红色目标
+  description: 单目标抓取并放置到红色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  resolved_place_profiles:
+    red: bin_red
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+- id: pick-blue
+  name: 抓取蓝色目标
+  description: 单目标抓取并放置到蓝色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: blue
+  allowed_target_categories:
+  - blue
+  resolved_place_profiles:
+    blue: bin_blue
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+- id: pick-green
+  name: 抓取绿色目标
+  description: 单目标抓取并放置到绿色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: green
+  allowed_target_categories:
+  - green
+  resolved_place_profiles:
+    green: bin_green
+  risk_level: low
+  required_runtime_tier: validated_sim
+  operator_hint: 适合绿色类目标的单目标搬运验收。
+- id: sort-color
+  name: 按颜色分拣
+  description: 按颜色选择器进行分拣，红/蓝/绿目标分别落入对应料区。
+  frontend_task_type: sort_by_color
+  backend_task_type: PICK_BY_COLOR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  - blue
+  - green
+  resolved_place_profiles:
+    red: bin_red
+    blue: bin_blue
+    green: bin_green
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  operator_hint: 需要颜色目标检测链路稳定。
+- id: sort-qr
+  name: 二维码识别搬运
+  description: 根据二维码选择目标，当前统一落到默认料区，不宣称多料区二维码分拣能力。
+  frontend_task_type: sort_by_qr
+  backend_task_type: PICK_BY_QR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: qr_a
+  allowed_target_categories:
+  - qr_a
+  - qr_b
+  - qr_c
+  resolved_place_profiles:
+    qr_a: default
+    qr_b: default
+    qr_c: default
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  operator_hint: 当前二维码任务仅保证识别触发与默认料区搬运语义。
+- id: clear-table
+  name: 清台任务
+  description: 持续抓取当前工作台上全部可执行目标并放置到默认料区。
+  frontend_task_type: clear_table
+  backend_task_type: CLEAR_TABLE
+  task_profile_path: task_clear_table.yaml
+  default_target_category: null
+  allowed_target_categories: []
+  resolved_place_profiles:
+    default: default
+  risk_level: high
+  required_runtime_tier: validated_sim
+  operator_hint: 连续搬运任务，对感知、规划与执行链路稳定性要求更高。

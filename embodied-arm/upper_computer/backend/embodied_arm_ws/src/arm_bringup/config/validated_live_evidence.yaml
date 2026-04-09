@@ -1,0 +1,13 @@
+schema_version: 2
+evidence:
+  target_runtime_gate_passed:
+    status: not_executed
+    artifact: docs/evidence/validated_live/target_runtime_gate.md
+    gate_field: targetGate
+  hil_gate_passed:
+    status: not_executed
+    artifact: docs/evidence/validated_live/hil_smoke_report.md
+    gate_field: hilGate
+  release_checklist_signed:
+    status: not_signed
+    artifact: docs/evidence/validated_live/release_checklist.md

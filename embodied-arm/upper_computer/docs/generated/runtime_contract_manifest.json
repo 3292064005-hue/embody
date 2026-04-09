@@ -1,0 +1,670 @@
+{
+  "schemaVersion": "1.5",
+  "generatedFrom": "scripts/generate_contract_artifacts.py",
+  "readiness": {
+    "publicFields": [
+      "runtimeHealthy",
+      "modeReady",
+      "allReady",
+      "runtimeRequiredChecks",
+      "runtimeMissingChecks",
+      "requiredChecks",
+      "missingChecks",
+      "missingDetails",
+      "checks",
+      "commandPolicies",
+      "commandSummary",
+      "authoritative",
+      "simulated",
+      "runtimeTier",
+      "productLine",
+      "manualCommandLimits",
+      "runtimeConfigVersion",
+      "source",
+      "updatedAt"
+    ],
+    "runtimeHealthRequired": [
+      "ros2",
+      "task_orchestrator",
+      "motion_planner",
+      "motion_executor",
+      "scene_runtime_service",
+      "grasp_runtime_service",
+      "hardware_bridge",
+      "calibration",
+      "profiles"
+    ],
+    "requiredByMode": {
+      "boot": [
+        "ros2"
+      ],
+      "idle": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge",
+        "calibration",
+        "profiles"
+      ],
+      "task": [
+        "ros2",
+        "task_orchestrator",
+        "motion_planner",
+        "motion_executor",
+        "scene_runtime_service",
+        "grasp_runtime_service",
+        "hardware_bridge",
+        "camera_alive",
+        "perception_alive",
+        "target_available",
+        "calibration",
+        "profiles"
+      ],
+      "manual": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ],
+      "maintenance": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ],
+      "safe_stop": [
+        "ros2",
+        "hardware_bridge"
+      ],
+      "fault": [
+        "ros2",
+        "hardware_bridge"
+      ]
+    },
+    "commandNames": [
+      "startTask",
+      "stopTask",
+      "jog",
+      "servoCartesian",
+      "gripper",
+      "home",
+      "resetFault",
+      "recover"
+    ],
+    "commandRequiredByName": {
+      "startTask": [
+        "ros2",
+        "task_orchestrator",
+        "motion_planner",
+        "motion_executor",
+        "scene_runtime_service",
+        "grasp_runtime_service",
+        "hardware_bridge",
+        "camera_alive",
+        "perception_alive",
+        "target_available",
+        "calibration",
+        "profiles"
+      ],
+      "stopTask": [],
+      "jog": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ],
+      "servoCartesian": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ],
+      "gripper": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ],
+      "home": [
+        "ros2",
+        "hardware_bridge"
+      ],
+      "resetFault": [
+        "ros2",
+        "hardware_bridge"
+      ],
+      "recover": [
+        "ros2",
+        "task_orchestrator",
+        "hardware_bridge"
+      ]
+    },
+    "commandAllowedModes": {
+      "startTask": [
+        "idle",
+        "task"
+      ],
+      "stopTask": [
+        "task",
+        "manual",
+        "maintenance",
+        "safe_stop",
+        "fault",
+        "simulated_local_only"
+      ],
+      "jog": [
+        "manual",
+        "maintenance",
+        "simulated_local_only"
+      ],
+      "servoCartesian": [
+        "manual",
+        "maintenance",
+        "simulated_local_only"
+      ],
+      "gripper": [
+        "manual",
+        "maintenance",
+        "simulated_local_only"
+      ],
+      "home": [
+        "idle",
+        "manual",
+        "maintenance",
+        "task",
+        "fault",
+        "simulated_local_only"
+      ],
+      "resetFault": [
+        "fault",
+        "safe_stop",
+        "simulated_local_only"
+      ],
+      "recover": [
+        "idle",
+        "maintenance",
+        "fault",
+        "safe_stop",
+        "simulated_local_only"
+      ]
+    }
+  },
+  "hardware": {
+    "authorityFields": [
+      "sourceStm32Online",
+      "sourceStm32Authoritative",
+      "sourceStm32TransportMode",
+      "sourceStm32Controllable",
+      "sourceStm32Simulated",
+      "sourceStm32SimulatedFallback"
+    ],
+    "manualCommandLimits": {
+      "maxServoCartesianDeltaMeters": 0.1,
+      "maxJogJointStepDeg": 10.0
+    }
+  },
+  "system": {
+    "semanticFields": [
+      "controllerMode",
+      "runtimePhase",
+      "taskStage"
+    ],
+    "compatibilityAliases": {
+      "mode": "runtimePhase",
+      "operatorMode": "controllerMode",
+      "currentStage": "taskStage",
+      "allReady": "modeReady"
+    }
+  },
+  "ros2": {
+    "topics": {
+      "bringupStatus": "/arm/bringup/status",
+      "bringupStatusTyped": "/arm/bringup/status_typed",
+      "calibrationProfileTyped": "/arm/calibration/profile_typed",
+      "cameraFrameSummary": "/arm/camera/frame_summary",
+      "cameraHealthSummary": "/arm/camera/health",
+      "cameraImageRaw": "/arm/camera/image_raw",
+      "cameraInfo": "/arm/camera/camera_info",
+      "diagnosticsSummaryTyped": "/arm/diagnostics/summary_typed",
+      "faultReport": "/arm/fault/report",
+      "hardwareState": "/arm/hardware/state",
+      "logEvent": "/arm/log/event",
+      "readinessStateTyped": "/arm/readiness/state_typed",
+      "systemState": "/arm/system/state",
+      "taskStatusTyped": "/arm/task/status_typed",
+      "visionSummary": "/arm/vision/summary",
+      "visionTarget": "/arm/vision/target",
+      "visionTargetsTyped": "/arm/vision/targets_typed",
+      "calibrationProfile": "/arm/calibration/profile",
+      "cameraImageCompat": "/arm/camera/image_raw_compat",
+      "diagnosticsHealth": "/arm/diagnostics/health",
+      "readinessState": "/arm/readiness/state",
+      "taskStatus": "/arm/task/status",
+      "visionTargets": "/arm/vision/targets",
+      "internalExecutionStatus": "/arm/internal/execution_status",
+      "internalHardwareCmd": "/arm/internal/hardware_cmd",
+      "internalRos2ControlCmd": "/arm/internal/ros2_control_cmd",
+      "internalStopCmd": "/arm/internal/stop_cmd"
+    },
+    "services": {
+      "startTask": "/arm/start_task",
+      "stopTask": "/arm/stop_task",
+      "stop": "/arm/stop",
+      "home": "/arm/home",
+      "resetFault": "/arm/reset_fault",
+      "calibrationManagerReload": "/calibration_manager_node/reload",
+      "activateCalibration": "/arm/activate_calibration",
+      "setMode": "/arm/set_mode"
+    },
+    "actions": {
+      "pickPlaceTask": "/arm/pick_place_task",
+      "manualServo": "/arm/manual_servo",
+      "homeSequence": "/arm/home_sequence",
+      "homing": "/arm/homing",
+      "recover": "/arm/recover"
+    }
+  },
+  "runtime": {
+    "corePackages": [
+      "arm_bt_nodes",
+      "arm_bt_runtime",
+      "arm_calibration",
+      "arm_camera_driver",
+      "arm_diagnostics",
+      "arm_esp32_gateway",
+      "arm_grasp_planner",
+      "arm_hardware_bridge",
+      "arm_logger",
+      "arm_motion_executor",
+      "arm_motion_planner",
+      "arm_perception",
+      "arm_profiles",
+      "arm_readiness_manager",
+      "arm_safety_supervisor",
+      "arm_scene_manager",
+      "arm_task_orchestrator"
+    ],
+    "supervisionPackages": [
+      "arm_lifecycle_manager"
+    ],
+    "laneAliases": {
+      "authoritative_runtime": "sim_authoritative",
+      "full_demo": "full_demo_preview",
+      "full_demo_validated": "full_demo_authoritative",
+      "hw": "hw_preview",
+      "hybrid": "hybrid_preview",
+      "live": "real_validated_live",
+      "official_runtime": "sim_preview",
+      "real": "real_preview",
+      "real_authoritative": "real_candidate",
+      "real_authoritative_live": "real_validated_live",
+      "real_validated": "real_candidate",
+      "sim": "sim_preview",
+      "sim_perception_realistic": "sim_perception_preview",
+      "sim_validated": "sim_authoritative",
+      "validated_live": "real_validated_live"
+    },
+    "laneCapabilities": {
+      "full_demo_authoritative": {
+        "frameIngressMode": "synthetic_frame_stream",
+        "forwardHardwareCommands": true,
+        "hardwareExecutionMode": "authoritative_simulation",
+        "esp32StreamSemantic": "synthetic_frame",
+        "esp32FrameIngressLive": true,
+        "planningCapability": "validated_sim",
+        "planningAuthoritative": true,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "validated_sim",
+        "runtimeTier": "validated_sim"
+      },
+      "full_demo_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "hw_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "hybrid_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "real_candidate": {
+        "frameIngressMode": "live_camera_stream",
+        "forwardHardwareCommands": true,
+        "hardwareExecutionMode": "ros2_control_live",
+        "esp32StreamSemantic": "live_frame_summary",
+        "esp32FrameIngressLive": true,
+        "planningCapability": "validated_live",
+        "planningAuthoritative": true,
+        "planningBackendDeclared": false,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "real_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "real_validated_live": {
+        "frameIngressMode": "live_camera_stream",
+        "forwardHardwareCommands": true,
+        "hardwareExecutionMode": "ros2_control_live",
+        "esp32StreamSemantic": "live_frame_summary",
+        "esp32FrameIngressLive": true,
+        "planningCapability": "validated_live",
+        "planningAuthoritative": true,
+        "planningBackendDeclared": false,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "sim_authoritative": {
+        "frameIngressMode": "synthetic_frame_stream",
+        "forwardHardwareCommands": true,
+        "hardwareExecutionMode": "authoritative_simulation",
+        "esp32StreamSemantic": "synthetic_frame",
+        "esp32FrameIngressLive": true,
+        "planningCapability": "validated_sim",
+        "planningAuthoritative": true,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "validated_sim",
+        "runtimeTier": "validated_sim"
+      },
+      "sim_perception_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      },
+      "sim_preview": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_bridge",
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeTier": "preview"
+      }
+    },
+    "promotionReceipts": {
+      "validated_sim": {
+        "promoted": true,
+        "receiptId": "validated-sim-baseline",
+        "checkedBy": "repository-ci",
+        "checkedAt": "2026-04-08T00:00:00Z",
+        "reason": "",
+        "requiredEvidence": [
+          "backend-active",
+          "gateway",
+          "contract-artifacts",
+          "runtime-contracts"
+        ],
+        "evidence": [
+          "backend-active",
+          "gateway",
+          "contract-artifacts",
+          "runtime-contracts"
+        ],
+        "effective": true,
+        "missingEvidence": []
+      },
+      "validated_live": {
+        "promoted": false,
+        "receiptId": "",
+        "checkedBy": "",
+        "checkedAt": "",
+        "reason": "fail_closed_until_validated_live_backbone_and_release_gates_are_committed",
+        "requiredEvidence": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ],
+        "evidence": [],
+        "effective": false,
+        "missingEvidence": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ]
+      }
+    },
+    "productLineCapabilities": {
+      "preview": {
+        "label": "Preview / Contract Only",
+        "description": "仅用于能力验证、链路联调与只读工作台。",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "runtimeBadge": "PREVIEW",
+        "promotionControlled": false,
+        "promotionEffective": false,
+        "promotionMissing": [],
+        "lanes": [
+          "full_demo_preview",
+          "hw_preview",
+          "hybrid_preview",
+          "real_candidate",
+          "real_preview",
+          "real_validated_live",
+          "sim_perception_preview",
+          "sim_preview"
+        ]
+      },
+      "validated_sim": {
+        "label": "Validated Simulation",
+        "description": "已验证仿真 authoritative lane，可进入正式任务工作台。",
+        "taskWorkbenchVisible": true,
+        "taskExecutionInteractive": true,
+        "runtimeBadge": "VALIDATED_SIM",
+        "promotionControlled": false,
+        "promotionEffective": true,
+        "promotionMissing": [],
+        "lanes": [
+          "full_demo_authoritative",
+          "sim_authoritative"
+        ]
+      },
+      "validated_live": {
+        "label": "Validated Live Hardware",
+        "description": "仅当 validated_live backbone、target-runtime gate、HIL gate 与 release checklist 全部通过时，才开放真机任务工作台。",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "runtimeBadge": "VALIDATED_LIVE",
+        "promotionControlled": true,
+        "promotionEffective": false,
+        "promotionMissing": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ],
+        "lanes": []
+      }
+    },
+    "packageOwnership": {
+      "execution": "arm_motion_executor",
+      "hardware io": "arm_hardware_bridge",
+      "lifecycle supervision": "arm_lifecycle_manager",
+      "perception input": "arm_camera_driver",
+      "perception processing": "arm_perception",
+      "planning": "arm_motion_planner",
+      "readiness": "arm_readiness_manager",
+      "safety": "arm_safety_supervisor",
+      "task orchestration": "arm_task_orchestrator"
+    }
+  },
+  "tasks": {
+    "schemaVersion": 2,
+    "productLines": {
+      "preview": {
+        "label": "Preview / Contract Only",
+        "description": "仅用于能力验证、链路联调与只读工作台。",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false
+      },
+      "validated_sim": {
+        "label": "Validated Simulation",
+        "description": "已验证仿真 authoritative lane，可进入正式任务工作台。",
+        "taskWorkbenchVisible": true,
+        "taskExecutionInteractive": true
+      },
+      "validated_live": {
+        "label": "Validated Live Hardware",
+        "description": "仅当 validated_live backbone、target-runtime gate、HIL gate 与 release checklist 全部通过时，才开放真机任务工作台。",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false
+      }
+    },
+    "templates": [
+      {
+        "id": "pick-red",
+        "name": "抓取红色目标",
+        "taskType": "pick_place",
+        "backendTaskType": "PICK_AND_PLACE",
+        "description": "单目标抓取并放置到红色料区。",
+        "defaultTargetCategory": "red",
+        "allowedTargetCategories": [
+          "red"
+        ],
+        "resolvedPlaceProfiles": {
+          "red": "bin_red"
+        },
+        "riskLevel": "low",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_pick_by_color.yaml",
+        "operatorHint": "适合单目标验证链路与基础抓取验收。"
+      },
+      {
+        "id": "pick-blue",
+        "name": "抓取蓝色目标",
+        "taskType": "pick_place",
+        "backendTaskType": "PICK_AND_PLACE",
+        "description": "单目标抓取并放置到蓝色料区。",
+        "defaultTargetCategory": "blue",
+        "allowedTargetCategories": [
+          "blue"
+        ],
+        "resolvedPlaceProfiles": {
+          "blue": "bin_blue"
+        },
+        "riskLevel": "low",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_pick_by_color.yaml",
+        "operatorHint": "适合单目标验证链路与基础抓取验收。"
+      },
+      {
+        "id": "pick-green",
+        "name": "抓取绿色目标",
+        "taskType": "pick_place",
+        "backendTaskType": "PICK_AND_PLACE",
+        "description": "单目标抓取并放置到绿色料区。",
+        "defaultTargetCategory": "green",
+        "allowedTargetCategories": [
+          "green"
+        ],
+        "resolvedPlaceProfiles": {
+          "green": "bin_green"
+        },
+        "riskLevel": "low",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_pick_by_color.yaml",
+        "operatorHint": "适合绿色类目标的单目标搬运验收。"
+      },
+      {
+        "id": "sort-color",
+        "name": "按颜色分拣",
+        "taskType": "sort_by_color",
+        "backendTaskType": "PICK_BY_COLOR",
+        "description": "按颜色选择器进行分拣，红/蓝/绿目标分别落入对应料区。",
+        "defaultTargetCategory": "red",
+        "allowedTargetCategories": [
+          "red",
+          "blue",
+          "green"
+        ],
+        "resolvedPlaceProfiles": {
+          "red": "bin_red",
+          "blue": "bin_blue",
+          "green": "bin_green"
+        },
+        "riskLevel": "medium",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_pick_by_color.yaml",
+        "operatorHint": "需要颜色目标检测链路稳定。"
+      },
+      {
+        "id": "sort-qr",
+        "name": "二维码识别搬运",
+        "taskType": "sort_by_qr",
+        "backendTaskType": "PICK_BY_QR",
+        "description": "根据二维码选择目标，当前统一落到默认料区，不宣称多料区二维码分拣能力。",
+        "defaultTargetCategory": "qr_a",
+        "allowedTargetCategories": [
+          "qr_a",
+          "qr_b",
+          "qr_c"
+        ],
+        "resolvedPlaceProfiles": {
+          "qr_a": "default",
+          "qr_b": "default",
+          "qr_c": "default"
+        },
+        "riskLevel": "medium",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_pick_by_color.yaml",
+        "operatorHint": "当前二维码任务仅保证识别触发与默认料区搬运语义。"
+      },
+      {
+        "id": "clear-table",
+        "name": "清台任务",
+        "taskType": "clear_table",
+        "backendTaskType": "CLEAR_TABLE",
+        "description": "持续抓取当前工作台上全部可执行目标并放置到默认料区。",
+        "defaultTargetCategory": null,
+        "allowedTargetCategories": [],
+        "resolvedPlaceProfiles": {
+          "default": "default"
+        },
+        "riskLevel": "high",
+        "requiredRuntimeTier": "validated_sim",
+        "taskProfilePath": "task_clear_table.yaml",
+        "operatorHint": "连续搬运任务，对感知、规划与执行链路稳定性要求更高。"
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="simple_link" params="name">
+    <link name="${name}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1.0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+  <xacro:simple_link name="base_link"/>
+  <xacro:simple_link name="link_1"/>
+  <xacro:simple_link name="link_2"/>
+  <xacro:simple_link name="link_3"/>
+  <xacro:simple_link name="link_4"/>
+  <xacro:simple_link name="link_5"/>
+  <xacro:simple_link name="link_6"/>
+  <xacro:simple_link name="tool0"/>
+  <xacro:simple_link name="gripper_finger"/>
+  <xacro:simple_link name="gripper_tcp"/>
+</robot>

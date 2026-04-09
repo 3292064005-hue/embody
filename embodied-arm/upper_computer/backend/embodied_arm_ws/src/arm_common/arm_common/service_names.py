@@ -1,0 +1,13 @@
+class ServiceNames:
+    START_TASK = '/arm/start_task'
+    RESET_FAULT = '/arm/reset_fault'
+    STOP = '/arm/stop'
+    STOP_TASK = '/arm/stop_task'
+    SET_MODE = '/arm/set_mode'
+    HOME = '/arm/home'
+    CAPTURE_CALIBRATION_FRAME = '/arm/capture_calibration_frame'
+    CALIBRATION_MANAGER_RELOAD = '/calibration_manager_node/reload'
+    PROFILE_MANAGER_RELOAD = '/profile_manager_node/reload'
+    ACTIVATE_CALIBRATION = '/arm/activate_calibration'
+    RUNTIME_SCENE_SNAPSHOT = '/arm/internal/runtime_scene_snapshot'
+    RUNTIME_GRASP_PLAN = '/arm/internal/runtime_grasp_plan'

@@ -1,0 +1,11 @@
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <joint name="joint_1" type="revolute"><parent link="base_link"/><child link="link_1"/><origin xyz="0 0 0.1" rpy="0 0 0"/><axis xyz="0 0 1"/><limit lower="-3.14" upper="3.14" effort="50" velocity="1.5"/></joint>
+  <joint name="joint_2" type="revolute"><parent link="link_1"/><child link="link_2"/><origin xyz="0 0 0.15" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-2.5" upper="2.5" effort="50" velocity="1.5"/></joint>
+  <joint name="joint_3" type="revolute"><parent link="link_2"/><child link="link_3"/><origin xyz="0.2 0 0" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-2.5" upper="2.5" effort="50" velocity="1.5"/></joint>
+  <joint name="joint_4" type="revolute"><parent link="link_3"/><child link="link_4"/><origin xyz="0.18 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/><limit lower="-3.14" upper="3.14" effort="30" velocity="2.0"/></joint>
+  <joint name="joint_5" type="revolute"><parent link="link_4"/><child link="link_5"/><origin xyz="0.12 0 0" rpy="0 0 0"/><axis xyz="0 1 0"/><limit lower="-3.14" upper="3.14" effort="30" velocity="2.0"/></joint>
+  <joint name="joint_6" type="revolute"><parent link="link_5"/><child link="link_6"/><origin xyz="0.1 0 0" rpy="0 0 0"/><axis xyz="1 0 0"/><limit lower="-3.14" upper="3.14" effort="20" velocity="2.0"/></joint>
+  <joint name="tool0_fixed" type="fixed"><parent link="link_6"/><child link="tool0"/><origin xyz="0.08 0 0" rpy="0 0 0"/></joint>
+  <joint name="gripper_joint" type="prismatic"><parent link="tool0"/><child link="gripper_finger"/><origin xyz="0.02 0 0" rpy="0 0 0"/><axis xyz="0 0 1"/><limit lower="0.0" upper="0.04" effort="20" velocity="0.2"/></joint>
+  <joint name="tool_to_tcp" type="fixed"><parent link="gripper_finger"/><child link="gripper_tcp"/><origin xyz="0 0 0.06" rpy="0 0 0"/></joint>
+</robot>

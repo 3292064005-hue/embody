@@ -1,0 +1,21 @@
+authority:
+  source: arm_bringup/config/safety_limits.yaml
+  mirrored_joint_source: arm_description/config/joint_limits.yaml
+  runtime_enforced: true
+  enforcement_nodes:
+    - arm_motion_executor
+    - arm_hardware_bridge/hardware_command_dispatcher
+joint_limits:
+  joint_1: {has_position_limits: true, min_position: -3.14, max_position: 3.14}
+  joint_2: {has_position_limits: true, min_position: -2.5, max_position: 2.5}
+  joint_3: {has_position_limits: true, min_position: -2.5, max_position: 2.5}
+  joint_4: {has_position_limits: true, min_position: -3.14, max_position: 3.14}
+  joint_5: {has_position_limits: true, min_position: -3.14, max_position: 3.14}
+  joint_6: {has_position_limits: true, min_position: -3.14, max_position: 3.14}
+  gripper_joint: {has_position_limits: true, min_position: 0.0, max_position: 0.04}
+max_cartesian_speed_mps: 0.15
+max_cartesian_accel_mps2: 0.4
+max_gripper_force: 0.4
+manual_command_limits:
+  max_servo_cartesian_delta: 0.1
+  max_jog_joint_step_deg: 10.0

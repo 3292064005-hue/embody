@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+artifacts/
+upper_computer/artifacts/
+upper_computer/frontend/node_modules/
+upper_computer/frontend/dist/
+upper_computer/backend/embodied_arm_ws/build/
+upper_computer/backend/embodied_arm_ws/install/
+upper_computer/backend/embodied_arm_ws/log/
+esp32s3_platformio/.pio/
+stm32f103c8_platformio/.pio/

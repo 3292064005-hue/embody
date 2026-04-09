@@ -1,0 +1,5 @@
+string request_json
+---
+bool ok
+string error
+string snapshot_json

@@ -1,0 +1,631 @@
+# Generated from gateway.server:create_app(). Do not edit manually.
+openapi: 3.1.0
+info:
+  title: Embodied Arm HMI Gateway
+  version: 2.3.0
+paths:
+  /health/live:
+    get:
+      summary: Live
+      operationId: live_health_live_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health/ready:
+    get:
+      summary: Ready
+      operationId: ready_health_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /health/deps:
+    get:
+      summary: Deps
+      operationId: deps_health_deps_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/summary:
+    get:
+      summary: Get System Summary
+      operationId: get_system_summary_api_system_summary_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/readiness:
+    get:
+      summary: Get System Readiness
+      operationId: get_system_readiness_api_system_readiness_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/home:
+    post:
+      summary: Post System Home
+      operationId: post_system_home_api_system_home_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/reset-fault:
+    post:
+      summary: Post Reset Fault
+      operationId: post_reset_fault_api_system_reset_fault_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/recover:
+    post:
+      summary: Post Recover
+      operationId: post_recover_api_system_recover_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/system/emergency-stop:
+    post:
+      summary: Post Estop
+      operationId: post_estop_api_system_emergency_stop_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/hardware/set-mode:
+    post:
+      summary: Post Set Mode
+      operationId: post_set_mode_api_hardware_set_mode_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetModeRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/task/current:
+    get:
+      summary: Get Task Current
+      operationId: get_task_current_api_task_current_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/task/templates:
+    get:
+      summary: Get Task Templates
+      operationId: get_task_templates_api_task_templates_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/task/history:
+    get:
+      summary: Get Task History
+      operationId: get_task_history_api_task_history_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/task/start:
+    post:
+      summary: Post Task Start
+      operationId: post_task_start_api_task_start_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartTaskRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/task/stop:
+    post:
+      summary: Post Task Stop
+      operationId: post_task_stop_api_task_stop_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/vision/targets:
+    get:
+      summary: Get Targets
+      operationId: get_targets_api_vision_targets_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/vision/frame:
+    get:
+      summary: Get Frame
+      operationId: get_frame_api_vision_frame_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/vision/clear-targets:
+    post:
+      summary: Clear Targets
+      operationId: clear_targets_api_vision_clear_targets_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/calibration/profile:
+    get:
+      summary: Get Calibration Profile
+      operationId: get_calibration_profile_api_calibration_profile_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    put:
+      summary: Put Calibration Profile
+      operationId: put_calibration_profile_api_calibration_profile_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalibrationProfileRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/calibration/versions:
+    get:
+      summary: Get Calibration Versions
+      operationId: get_calibration_versions_api_calibration_versions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/calibration/profiles:
+    get:
+      summary: Get Calibration Profiles
+      operationId: get_calibration_profiles_api_calibration_profiles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/calibration/profiles/{profile_id}/activate:
+    put:
+      summary: Put Activate Profile
+      operationId: put_activate_profile_api_calibration_profiles__profile_id__activate_put
+      parameters:
+      - name: profile_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Profile Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/calibration/reload:
+    post:
+      summary: Reload Calibration
+      operationId: reload_calibration_api_calibration_reload_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/calibration/activate:
+    post:
+      summary: Activate Calibration
+      operationId: activate_calibration_api_calibration_activate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalibrationProfileRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/hardware/state:
+    get:
+      summary: Get Hardware State
+      operationId: get_hardware_state_api_hardware_state_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/hardware/gripper:
+    post:
+      summary: Post Gripper
+      operationId: post_gripper_api_hardware_gripper_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GripperRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/hardware/jog-joint:
+    post:
+      summary: Post Jog Joint
+      operationId: post_jog_joint_api_hardware_jog_joint_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JogJointRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/hardware/servo-cartesian:
+    post:
+      summary: Post Servo Cartesian
+      description: "Dispatch a validated cartesian servo command to the ROS bridge.\n\
+        \nArgs:\n    body: Validated cartesian servo command payload.\n    request:\
+        \ FastAPI request carrying the runtime app context and actor headers.\n\n\
+        Returns:\n    A wrapped empty success response bound to the current request\
+        \ id.\n\nRaises:\n    ApiException: Raised when role or readiness policy blocks\
+        \ the command.\n\nBoundary behavior:\n    Returns HTTP 501 for intentionally\
+        \ disabled contract branches and HTTP 409\n    for readiness-gated blocks\
+        \ without mutating gateway state."
+      operationId: post_servo_cartesian_api_hardware_servo_cartesian_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServoCartesianRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/logs:
+    get:
+      summary: Get Logs
+      operationId: get_logs_api_logs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/logs/events:
+    get:
+      summary: Get Log Events
+      operationId: get_log_events_api_logs_events_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/logs/audit:
+    get:
+      summary: Get Audit Events
+      operationId: get_audit_events_api_logs_audit_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/diagnostics/summary:
+    get:
+      summary: Get Diagnostics Summary
+      operationId: get_diagnostics_summary_api_diagnostics_summary_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    CalibrationOffsets:
+      properties:
+        x:
+          type: number
+          title: X
+          default: 0.0
+        y:
+          type: number
+          title: Y
+          default: 0.0
+        z:
+          type: number
+          title: Z
+          default: 0.0
+      type: object
+      title: CalibrationOffsets
+    CalibrationProfileRequest:
+      properties:
+        profileName:
+          type: string
+          maxLength: 64
+          minLength: 1
+          pattern: ^[A-Za-z0-9._-]+$
+          title: Profilename
+          default: default
+        roi:
+          $ref: '#/components/schemas/CalibrationRoi'
+        tableScaleMmPerPixel:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Tablescalemmperpixel
+          default: 1.0
+        offsets:
+          $ref: '#/components/schemas/CalibrationOffsets'
+      type: object
+      title: CalibrationProfileRequest
+    CalibrationRoi:
+      properties:
+        x:
+          type: integer
+          minimum: 0.0
+          title: X
+          default: 0
+        y:
+          type: integer
+          minimum: 0.0
+          title: Y
+          default: 0
+        width:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Width
+          default: 640
+        height:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Height
+          default: 480
+      type: object
+      title: CalibrationRoi
+    GripperRequest:
+      properties:
+        open:
+          type: boolean
+          title: Open
+          default: true
+      type: object
+      title: GripperRequest
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    JogJointRequest:
+      properties:
+        jointIndex:
+          type: integer
+          maximum: 5.0
+          minimum: 0.0
+          title: Jointindex
+        direction:
+          type: integer
+          enum:
+          - -1
+          - 1
+          title: Direction
+          default: 1
+        stepDeg:
+          type: number
+          maximum: 10.0
+          exclusiveMinimum: 0.0
+          title: Stepdeg
+          default: 2.0
+      type: object
+      required:
+      - jointIndex
+      title: JogJointRequest
+    ServoCartesianRequest:
+      properties:
+        axis:
+          type: string
+          enum:
+          - x
+          - y
+          - z
+          - rx
+          - ry
+          - rz
+          title: Axis
+        delta:
+          type: number
+          maximum: 0.1
+          minimum: -0.1
+          title: Delta
+      type: object
+      required:
+      - axis
+      - delta
+      title: ServoCartesianRequest
+    SetModeRequest:
+      properties:
+        mode:
+          type: string
+          enum:
+          - idle
+          - manual
+          - task
+          - maintenance
+          title: Mode
+      type: object
+      required:
+      - mode
+      title: SetModeRequest
+    StartTaskRequest:
+      properties:
+        templateId:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Templateid
+        taskType:
+          type: string
+          enum:
+          - pick_place
+          - sort_by_color
+          - sort_by_qr
+          - clear_table
+          title: Tasktype
+          default: pick_place
+        targetCategory:
+          anyOf:
+          - type: string
+            enum:
+            - red
+            - blue
+            - green
+            - qr_a
+            - qr_b
+            - qr_c
+          - type: 'null'
+          title: Targetcategory
+      type: object
+      title: StartTaskRequest
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

@@ -1,0 +1,37 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+validated_sim:
+  promoted: true
+  receipt_id: validated-sim-baseline
+  checked_by: repository-ci
+  checked_at: '2026-04-08T00:00:00Z'
+  required_evidence:
+  - backend-active
+  - gateway
+  - contract-artifacts
+  - runtime-contracts
+  evidence:
+  - backend-active
+  - gateway
+  - contract-artifacts
+  - runtime-contracts
+  reason: ''
+  effective: true
+  missing_evidence: []
+validated_live:
+  promoted: false
+  receipt_id: ''
+  checked_by: ''
+  checked_at: ''
+  required_evidence:
+  - validated_live_backbone_declared
+  - target_runtime_gate_passed
+  - hil_gate_passed
+  - release_checklist_signed
+  evidence: []
+  reason: fail_closed_until_validated_live_backbone_and_release_gates_are_committed
+  effective: false
+  missing_evidence:
+  - validated_live_backbone_declared
+  - target_runtime_gate_passed
+  - hil_gate_passed
+  - release_checklist_signed
