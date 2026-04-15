@@ -6,13 +6,19 @@
 返回系统总状态。
 
 ### POST /api/system/home
-执行受控回零。
+执行受控回零。返回 transport result payload，而不是空 body。`data` 至少包含：
+- `success`
+- `message`
+- `localPreviewOnly`
+- `commandMode`
+
+当 `localPreviewOnly=true` 时，表示本次命令只投影到显式本地 preview 状态，没有下发到权威 ROS runtime。
 
 ### POST /api/system/reset-fault
-复位故障状态。
+复位故障状态。返回与 `/api/system/home` 相同的 transport result payload。
 
 ### POST /api/system/emergency-stop
-触发急停并进入安全停车态。
+触发急停并进入安全停车态。返回与 `/api/system/home` 相同的 transport result payload。
 
 ### GET /api/task/current
 返回当前任务，空任务返回 `null`。
@@ -35,7 +41,13 @@
 推荐以前端模板驱动的 `templateId` 作为主入口；`taskType + targetCategory` 仅保留兼容路径。成功返回会带上 `taskId / taskRunId / templateId / runtimeTier / productLine`；其中 `runtimeTier / productLine` 表示当前实际 runtime 车道，而不是模板最低门槛。
 
 ### POST /api/task/stop
-停止当前任务。
+停止当前任务。返回 transport result payload，而不是空 body。`data` 至少包含：
+- `success`
+- `message`
+- `localPreviewOnly`
+- `commandMode`
+
+这使“本地 preview 停止任务”与“权威运行时已实际停止任务”在接口语义上明确区分。
 
 ### GET /api/vision/targets
 获取当前识别目标列表。
@@ -72,6 +84,8 @@
 }
 ```
 
+返回 transport result payload，字段与 system/task command 一致：`success/message/localPreviewOnly/commandMode`。
+
 ### POST /api/hardware/jog-joint
 ```json
 {
@@ -95,6 +109,27 @@
   "data": {}
 }
 ```
+
+## Command transport result
+
+下列命令型接口统一返回 transport result payload，而不是空 body：
+- `/api/system/home`
+- `/api/system/reset-fault`
+- `/api/system/emergency-stop`
+- `/api/system/recover`
+- `/api/task/stop`
+- `/api/hardware/gripper`
+- `/api/hardware/jog-joint`
+- `/api/hardware/servo-cartesian`
+- `/api/hardware/set-mode`
+
+字段约定：
+- `success`: transport 是否被接受
+- `message`: 网关/bridge 返回的结果说明
+- `localPreviewOnly`: 是否仅做本地 preview 投影
+- `commandMode`: `authoritative_transport` / `local_preview_only` / `fixture_mock`
+
+前端不得把 `localPreviewOnly=true` 的结果渲染成“硬件已执行”或“运行时已执行”。
 
 ## WebSocket Envelope
 

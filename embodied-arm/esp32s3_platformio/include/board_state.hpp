@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <vector>
 
+#include "project_config.hpp"
+
 namespace embodied_arm::esp32s3 {
 
 struct VoiceEvent {
@@ -14,14 +16,14 @@ struct VoiceEvent {
 struct BoardState {
   bool online{true};
   bool wifi_connected{false};
-  bool camera_available{false};
-  bool frame_ingress_live{false};
+  bool camera_available{kCameraAvailable};
+  bool frame_ingress_live{kFrameIngressLive};
   bool imu_available{false};
   bool display_available{false};
   bool led_available{false};
   String mode{"wifi"};
   String stream_endpoint{"http://esp32.local/stream"};
-  String stream_semantic{"reserved"};
+  String stream_semantic{kStreamSemantic};
   String hostname{"esp32"};
   String ip_address{"0.0.0.0"};
   String camera_serial{"esp32s3-board"};

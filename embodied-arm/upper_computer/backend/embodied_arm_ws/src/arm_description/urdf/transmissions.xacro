@@ -4,8 +4,16 @@
       <plugin>${hardware_plugin}</plugin>
       <param name="default_position">0.0</param>
       <param name="command_timeout_sec">0.75</param>
+      <param name="feedback_timeout_sec">1.0</param>
+      <param name="command_publish_period_sec">0.05</param>
       <param name="state_following_gain">1.0</param>
       <param name="default_max_velocity">1.5</param>
+      <param name="command_topic">/arm/internal/hardware_cmd</param>
+      <param name="state_topic">/arm/hardware/state</param>
+      <param name="command_namespace">ros2_control_backbone</param>
+      <param name="gripper_open_position">0.04</param>
+      <param name="gripper_closed_position">0.0</param>
+      <param name="state_source_mode">${'shadow_following' if use_fake_hardware else 'external_feedback'}</param>
     </hardware>
     <joint name="joint_1">
       <param name="min_position">-3.14</param><param name="max_position">3.14</param><param name="max_velocity">1.5</param>

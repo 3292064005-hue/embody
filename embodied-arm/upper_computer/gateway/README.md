@@ -94,6 +94,7 @@ Gateway bootstrap semantics now live in `gateway/runtime_bootstrap.py`, while RO
 
 - `EMBODIED_ARM_RUNTIME_PROFILE=target-runtime`
 - `EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK=false`
+- `EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS=false`
 
 该默认行为是 **fail-closed**：当 ROS2 bridge 不可用时，gateway 保持 `bootstrap` readiness，而不是本地伪装成可执行 runtime。
 
@@ -102,10 +103,11 @@ Gateway bootstrap semantics now live in `gateway/runtime_bootstrap.py`, while RO
 ```bash
 export EMBODIED_ARM_RUNTIME_PROFILE=dev-hmi-mock
 export EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK=true
+export EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS=true
 python -m gateway.main
 ```
 
-该模式下 readiness 为 `simulated_local_only`，仅允许本地 HMI/维护动作联调；任务执行仍要求权威 ROS runtime。
+该模式下 gateway 仍投影 canonical `maintenance` / preview 语义，仅允许本地 HMI/维护动作联调；任务执行仍要求权威 ROS runtime。
 
 ## Generated contract sync
 

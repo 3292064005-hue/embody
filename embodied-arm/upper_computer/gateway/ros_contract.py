@@ -44,6 +44,7 @@ except Exception:  # pragma: no cover - used outside the test harness
         BRINGUP_STATUS_TYPED = '/arm/bringup/status_typed'
         VISION_TARGETS = '/arm/vision/targets'
         VISION_TARGETS_TYPED = '/arm/vision/targets_typed'
+        VOICE_EVENTS = '/arm/voice/events'
 
     class ServiceNames:
         HOME = '/arm/home'

@@ -7,13 +7,15 @@ import { useAuditStore } from '@/stores/audit';
 import { invalidateResources } from '@/shared/runtime/invalidation';
 
 export const useTaskStore = defineStore('task', {
-  state: (): { currentTask: TaskProgress | null; templates: TaskTemplate[]; history: TaskHistoryEntry[]; pending: boolean; selectedTemplateId: string; selectedTargetCategory: string } => ({
+  state: (): { currentTask: TaskProgress | null; templates: TaskTemplate[]; history: TaskHistoryEntry[]; pending: boolean; selectedTemplateId: string; selectedTargetCategory: string; localPreviewOnly: boolean; localPreviewMessage: string } => ({
     currentTask: null,
     templates: [],
     history: [],
     pending: false,
     selectedTemplateId: '',
-    selectedTargetCategory: 'red'
+    selectedTargetCategory: 'red',
+    localPreviewOnly: false,
+    localPreviewMessage: ''
   }),
   getters: {
     currentTemplate(state): TaskTemplate | undefined {
@@ -27,6 +29,10 @@ export const useTaskStore = defineStore('task', {
   },
   actions: {
     setCurrentTask(payload: TaskProgress | null) { this.currentTask = payload; },
+    applyCommandTransportResult(result?: { localPreviewOnly?: boolean; message?: string }) {
+      this.localPreviewOnly = Boolean(result?.localPreviewOnly);
+      this.localPreviewMessage = this.localPreviewOnly ? String(result?.message || '当前任务命令仅做本地 preview 投影，未下发到权威运行时。') : '';
+    },
     setTemplates(payload: TaskTemplate[]) {
       this.templates = payload;
       if (!this.selectedTemplateId && payload.length) {
@@ -75,8 +81,9 @@ export const useTaskStore = defineStore('task', {
       this.pending = true;
       const audit = auditStore.createEntry({ action: 'task.stop', actorRole: appStore.operatorRole, reason: '停止任务命令已受理', guardSummary: safetyStore.guardSummary });
       try {
-        await stopTask();
-        auditStore.updateStatus(audit.id, 'success', '停止任务命令发送成功');
+        const result = await stopTask();
+        this.applyCommandTransportResult(result);
+        auditStore.updateStatus(audit.id, 'success', this.localPreviewOnly ? '停止任务命令仅进入本地 preview 投影' : '停止任务命令发送成功');
         invalidateResources(['task.current', 'task.history', 'system', 'logs', 'hardware']);
       } catch (error) {
         auditStore.updateStatus(audit.id, 'failed', error instanceof Error ? error.message : '停止任务失败');

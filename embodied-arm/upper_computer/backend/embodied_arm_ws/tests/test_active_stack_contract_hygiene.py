@@ -16,6 +16,7 @@ ALLOW_RAW_ARM = {
     SRC / 'arm_scene_manager' / 'arm_scene_manager' / 'scene_manager_node.py',
     SRC / 'arm_grasp_planner' / 'arm_grasp_planner' / 'grasp_planner_node.py',
     SRC / 'arm_readiness_manager' / 'arm_readiness_manager' / 'readiness_manager_node.py',
+    SRC / 'arm_readiness_manager' / 'arm_readiness_manager' / 'mode_coordinator_node.py',
     SRC / 'arm_task_orchestrator' / 'arm_task_orchestrator' / 'task_orchestrator_node.py',
 }
 

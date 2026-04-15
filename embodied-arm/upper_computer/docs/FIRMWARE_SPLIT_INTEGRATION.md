@@ -55,19 +55,19 @@
 - 上位机 gateway/frontend 会把 ESP32 在线与 frame ingress 状态分开展示。
 
 
-## validated_live / real_candidate / real_validated_live lanes
+## validated_live / live_control / real_validated_live lanes
 
-`real_candidate` 用于真实相机 + 真串口候选链路，`real_validated_live` 用于 promotion-gated validated live 链路。两者共享以下硬约束：
+`live_control` 用于真实相机 + 真串口候选链路，`real_validated_live` 用于 promotion-gated validated live 链路。两者共享以下硬约束：
 
-历史 `real_authoritative` 入口现在只作为 `real_candidate` 的兼容 alias，不能再作为独立 live lane 维护。
+历史 `real_authoritative` 入口现在只作为 `live_control` 的兼容 alias，不能再作为独立 live lane 维护。
 
 - `planning_capability=validated_live`
 - `planning_backend_name=validated_live_bridge`
 - `planning_backend_profile=validated_live_bridge`
 - 没有 live planning backend 时 fail-closed，不允许自动回退到 `fallback_contract`
-- `hardware_execution_mode=ros2_control_live`
+- `hardware_execution_mode=ros2_control_candidate`
 - `forward_hardware_commands=true`
-- 相机链语义从 reserved endpoint 提升为 `live_camera_stream`
+- 相机链语义从 reserved endpoint 提升为 `live_camera_stream`，但 `/stream` 仍只承载 ESP32 authoritative metadata/control-plane，真实帧传输由 external camera bridge 提供
 - live backend 声明默认从 `src/arm_bringup/config/planning_backend_profiles.yaml` 读取，也可通过 `EMBODIED_ARM_PLANNING_BACKENDS_FILE` 外置覆盖
 - lane 晋升还必须依赖 `src/arm_bringup/config/runtime_promotion_receipts.yaml` 中的 `validated_live.promoted=true`，否则继续 fail-closed
 

@@ -69,6 +69,7 @@ evidence:
             'ros_build': 'passed',
             'ros_smoke': 'passed',
             'negative_path_subset': 'passed',
+            'runtime_baseline': 'passed',
             'target_gate': 'blocked',
             'hil': 'passed',
             'release_checklist': 'blocked',
@@ -125,7 +126,7 @@ evidence:
 
     report = build_release_gate_report(
         {},
-        {'env': 'passed', 'ros_build': 'passed', 'ros_smoke': 'passed', 'negative_path_subset': 'passed'},
+        {'env': 'passed', 'ros_build': 'passed', 'ros_smoke': 'passed', 'negative_path_subset': 'passed', 'runtime_baseline': 'passed'},
         root=tmp_path,
     )
 
@@ -135,3 +136,36 @@ evidence:
     assert report['releaseChecklistGate'] == 'passed'
     assert report['releaseGate'] == 'passed'
     assert report['steps']['release_gate'] == 'passed'
+
+
+
+def test_release_gate_target_requires_runtime_baseline_step(tmp_path: Path) -> None:
+    _write_repo_summary(tmp_path)
+
+    evidence_dir = tmp_path / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_bringup' / 'config'
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    docs_dir = tmp_path / 'docs' / 'evidence' / 'validated_live'
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    (docs_dir / 'hil_smoke_report.md').write_text('hil ok', encoding='utf-8')
+    (docs_dir / 'release_checklist.md').write_text('signed', encoding='utf-8')
+    (evidence_dir / 'validated_live_evidence.yaml').write_text(
+        """schema_version: 2
+evidence:
+  hil_gate_passed:
+    status: passed
+    artifact: docs/evidence/validated_live/hil_smoke_report.md
+  release_checklist_signed:
+    status: passed
+    artifact: docs/evidence/validated_live/release_checklist.md
+""",
+        encoding='utf-8',
+    )
+
+    report = build_release_gate_report(
+        {},
+        {'env': 'passed', 'ros_build': 'passed', 'ros_smoke': 'passed', 'negative_path_subset': 'passed', 'runtime_baseline': 'not_executed'},
+        root=tmp_path,
+    )
+
+    assert report['targetGate'] == 'blocked'
+    assert report['releaseGate'] == 'blocked'

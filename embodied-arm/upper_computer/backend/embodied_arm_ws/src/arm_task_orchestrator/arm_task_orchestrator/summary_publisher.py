@@ -60,6 +60,9 @@ class SummaryPublisher:
             'controllerMode': controller_mode,
             'selectedTargetId': None if current is None else current.target_id,
             'placeProfile': None if current is None else current.place_profile,
+            'graphKey': None if current is None else (current.metadata.get('graphKey') if isinstance(current.metadata, dict) else None),
+            'activeGraphNode': None if current is None else (current.metadata.get('activeGraphNode') if isinstance(current.metadata, dict) else None),
+            'activeGraphStage': None if current is None else (current.metadata.get('activeGraphStage') if isinstance(current.metadata, dict) else None),
             'retryCount': 0 if current is None else current.current_retry,
             'maxRetry': 0 if current is None else current.max_retry,
             'active': current is not None,
@@ -82,6 +85,8 @@ class SummaryPublisher:
         return {
             'queueDepth': queue_depth,
             'activeTask': None if current is None else current.task_id,
+            'graphKey': None if current is None else (current.metadata.get('graphKey') if isinstance(current.metadata, dict) else None),
+            'activeGraphNode': None if current is None else (current.metadata.get('activeGraphNode') if isinstance(current.metadata, dict) else None),
             'stage': phase,
             'taskStage': task_stage,
             'runtimePhase': runtime_phase,

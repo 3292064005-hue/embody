@@ -66,6 +66,7 @@
 - malformed frame 直接丢弃，不产生副作用
 - 去重窗口内的重复命令按幂等处理：重新 ACK 并补发状态
 - ACK/NACK 仅表达 transport 受理结果；动作完成、取消、故障通过 `REPORT_STATE/REPORT_FAULT` 的 actuation 字段表达
+- 当前固件按 `protocol_simulator` 语义工作：除 `fault/canceled` 外，终态统一以 `protocol_*_simulated` 上浮，避免被上位机误判为真实执行成功
 - 周期性 `REPORT_STATE` 独立于任务控制
 - 急停/限位触发会更新 fault code，并异步发 `REPORT_FAULT`
 

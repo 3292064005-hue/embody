@@ -15,13 +15,16 @@ from gateway.runtime_config import (
     load_place_profiles,
     load_runtime_promotion_receipt_details,
     load_runtime_promotion_receipts,
+    load_release_gate_details,
+    load_firmware_semantic_profiles,
+    resolve_active_runtime_profile,
 )
 
 
 def _write_runtime_authority(path: Path, *, backend_declared: bool, backbone_declared: bool) -> None:
     authority = yaml.safe_load((runtime_config.RUNTIME_AUTHORITY_PATH).read_text(encoding='utf-8'))
     authority['planning_backends']['validated_live_bridge']['declared'] = backend_declared
-    for lane_name in ('real_candidate', 'real_validated_live'):
+    for lane_name in ('live_control', 'real_validated_live'):
         if lane_name not in authority.get('runtime_lanes', {}):
             continue
         authority['runtime_lanes'][lane_name]['execution_backbone_declared'] = backbone_declared
@@ -318,3 +321,24 @@ def test_runtime_config_defaults_report_new_validated_live_markers_when_receipt_
         'hil_gate_passed',
         'release_checklist_signed',
     ]
+
+
+def test_runtime_config_loads_release_gate_projection(tmp_path: Path, monkeypatch) -> None:
+    report = tmp_path / 'release_gate.json'
+    report.write_text(json.dumps({'repoGate': 'passed', 'targetGate': 'blocked', 'hilGate': 'not_executed', 'releaseChecklistGate': 'not_executed', 'releaseGate': 'blocked', 'hasBlockingStep': True, 'blockingSteps': {'target_runtime_gate_passed': 'blocked'}}, indent=2), encoding='utf-8')
+    monkeypatch.setenv('EMBODIED_ARM_TARGET_RUNTIME_GATE_FILE', str(report))
+    clear_runtime_config_caches()
+    payload = load_release_gate_details()
+    assert payload['targetGate'] == 'blocked'
+    assert payload['hasBlockingStep'] is True
+    assert payload['blockingSteps']['target_runtime_gate_passed'] == 'blocked'
+
+
+def test_runtime_config_resolves_runtime_profile_alias_and_firmware_profiles() -> None:
+    clear_runtime_config_caches()
+    details = resolve_active_runtime_profile('official_runtime')
+    assert details['activeRuntimeLane'] == 'sim_preview'
+    assert details['resolvedFromAlias'] is True
+    firmware = load_firmware_semantic_profiles()
+    assert firmware['esp32']['default_profile'] == 'preview_reserved'
+    assert 'preview_reserved' in firmware['esp32']['profiles']

@@ -10,6 +10,8 @@ def test_authoritative_mock_runtime_produces_primary_target():
 
     assert frame_summary['health']['cameraAlive'] is True
     assert frame_summary['metadata']['mockProfile'] == 'authoritative_demo'
+    assert frame_summary['sourceClass'] == 'synthetic'
+    assert result['detectionSourceMode'] == 'synthetic_targets'
     assert result['perceptionAlive'] is True
     assert result['targetAvailable'] is True
     assert result['primaryTarget'] is not None

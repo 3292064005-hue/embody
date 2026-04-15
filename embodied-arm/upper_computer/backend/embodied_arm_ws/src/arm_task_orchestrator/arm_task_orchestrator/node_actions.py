@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from arm_backend_common.data_models import TaskRequest
 from arm_backend_common.enums import FaultCode
+from arm_task_orchestrator.task_plugins import resolve_task_graph_contract
 from arm_task_orchestrator.orchestrator import OrchestratorDecision
 
 
@@ -124,6 +125,7 @@ class TaskActionFacade:
         }.get(raw_target_type.lower())
         task_type = legacy_task_type or 'pick_place'
         target_selector = raw_target_id if legacy_task_type else (raw_target_type or raw_target_id)
+        graph_contract = resolve_task_graph_contract(task_type, target_selector=target_selector)
         return TaskRequest(
             task_id=task_id,
             task_type=task_type,
@@ -131,6 +133,7 @@ class TaskActionFacade:
             place_profile=str(getattr(action_request, 'place_profile', '') or 'default'),
             auto_retry=True,
             max_retry=max(0, int(getattr(action_request, 'max_retry', 0) or 0)),
+            metadata=dict(graph_contract),
         )
 
     def pick_place_goal_callback(self, goal_request) -> Any:

@@ -102,9 +102,11 @@ def build_steps(profile: str) -> list[tuple[str, Sequence[str], Path | None, dic
     steps.extend([
         ('backend-active', [python, '-m', 'pytest', '-q', '-c', 'pytest-active.ini', '-p', 'no:cacheprovider'], BACKEND_DIR, {'PYTHONDONTWRITEBYTECODE': '1'}),
         ('active-profile-consistency', [python, str(ROOT_DIR / 'scripts' / 'check_active_profile_consistency.py')], ROOT_DIR, None),
+        ('deprecated-runtime-usage', [python, str(ROOT_DIR / 'scripts' / 'check_deprecated_runtime_usage.py')], ROOT_DIR, None),
         ('interface-mirror-drift', [python, str(ROOT_DIR / 'scripts' / 'sync_interface_mirror.py'), '--check'], ROOT_DIR, None),
         ('contract-artifacts', [python, str(ROOT_DIR / 'scripts' / 'generate_contract_artifacts.py'), '--check'], ROOT_DIR, None),
         ('runtime-contracts', [python, str(ROOT_DIR / 'scripts' / 'validate_runtime_contracts.py')], ROOT_DIR, None),
+        ('runtime-baseline-report', [python, str(ROOT_DIR / 'scripts' / 'generate_runtime_baseline_report.py'), '--root', str(ROOT_DIR / 'gateway' / 'tests' / 'fixtures' / 'observability_sample'), '--output', str(ROOT_DIR / 'artifacts' / 'release_gates' / 'runtime_baseline_repo_sample.json')], ROOT_DIR, None),
         ('gateway', [python, '-m', 'pytest', '-q', 'gateway/tests', '-p', 'no:cacheprovider'], ROOT_DIR, {'PYTHONDONTWRITEBYTECODE': '1'}),
         ('frontend-deps', ['bash', 'scripts/ensure_frontend_deps.sh'], ROOT_DIR, None),
         ('frontend-typecheck-app', ['npm', 'run', 'typecheck'], FRONTEND_DIR, None),

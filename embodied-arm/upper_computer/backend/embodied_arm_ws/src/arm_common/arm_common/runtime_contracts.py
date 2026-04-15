@@ -48,12 +48,13 @@ def stage_plan_from_dict(payload: dict[str, Any]) -> StagePlan:
     )
 
 
-def build_planning_request(*, request_id: str, context: TaskContext, target: TargetSnapshot, calibration: CalibrationProfile, correlation_id: str = '', task_run_id: str = '') -> dict[str, Any]:
+def build_planning_request(*, request_id: str, context: TaskContext, target: TargetSnapshot, calibration: CalibrationProfile, correlation_id: str = '', task_run_id: str = '', episode_id: str = '') -> dict[str, Any]:
     """Build the split-stack planning request payload."""
     return {
         'requestId': str(request_id),
         'correlationId': str(correlation_id),
         'taskRunId': str(task_run_id),
+        'episodeId': str(episode_id or task_run_id),
         'taskId': str(context.task_id),
         'context': {
             'task_id': str(context.task_id),
@@ -61,18 +62,23 @@ def build_planning_request(*, request_id: str, context: TaskContext, target: Tar
             'target_selector': str(context.target_selector),
             'place_profile': str(context.place_profile),
             'active_place_pose': dict(context.active_place_pose),
+            'graph_key': str(context.metadata.get('graphKey', '') or '') if isinstance(context.metadata, dict) else '',
+            'task_graph': dict(context.metadata.get('taskGraph') or {}) if isinstance(context.metadata, dict) else {},
+            'active_graph_node': str(context.metadata.get('activeGraphNode', '') or '') if isinstance(context.metadata, dict) else '',
+            'active_graph_stage': str(context.metadata.get('activeGraphStage', context.stage) or context.stage),
         },
         'target': target.to_dict(),
         'calibration': calibration.to_dict(),
     }
 
 
-def build_planning_result(*, request_id: str, task_id: str, accepted: bool, message: str, plan: list[StagePlan] | None = None, correlation_id: str = '', task_run_id: str = '') -> dict[str, Any]:
+def build_planning_result(*, request_id: str, task_id: str, accepted: bool, message: str, plan: list[StagePlan] | None = None, correlation_id: str = '', task_run_id: str = '', episode_id: str = '') -> dict[str, Any]:
     """Build the split-stack planning result payload."""
     return {
         'requestId': str(request_id),
         'correlationId': str(correlation_id),
         'taskRunId': str(task_run_id),
+        'episodeId': str(episode_id or task_run_id),
         'taskId': str(task_id),
         'accepted': bool(accepted),
         'message': str(message),
@@ -80,23 +86,25 @@ def build_planning_result(*, request_id: str, task_id: str, accepted: bool, mess
     }
 
 
-def build_execution_request(*, request_id: str, task_id: str, plan: list[StagePlan], correlation_id: str = '', task_run_id: str = '') -> dict[str, Any]:
+def build_execution_request(*, request_id: str, task_id: str, plan: list[StagePlan], correlation_id: str = '', task_run_id: str = '', episode_id: str = '') -> dict[str, Any]:
     """Build the split-stack execution request payload."""
     return {
         'requestId': str(request_id),
         'correlationId': str(correlation_id),
         'taskRunId': str(task_run_id),
+        'episodeId': str(episode_id or task_run_id),
         'task_id': str(task_id),
         'stages': [stage_plan_to_dict(stage) for stage in plan],
     }
 
 
-def build_execution_status(*, request_id: str, task_id: str, status: str, message: str, stage_name: str = '', command_id: str = '', correlation_id: str = '', task_run_id: str = '') -> dict[str, Any]:
+def build_execution_status(*, request_id: str, task_id: str, status: str, message: str, stage_name: str = '', command_id: str = '', correlation_id: str = '', task_run_id: str = '', episode_id: str = '') -> dict[str, Any]:
     """Build the split-stack execution status payload."""
     return {
         'requestId': str(request_id),
         'correlationId': str(correlation_id),
         'taskRunId': str(task_run_id),
+        'episodeId': str(episode_id or task_run_id),
         'taskId': str(task_id),
         'status': str(status),
         'message': str(message),

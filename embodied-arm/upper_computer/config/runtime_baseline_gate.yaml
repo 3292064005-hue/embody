@@ -1,0 +1,7 @@
+schema_version: 1
+thresholds:
+  min_task_run_finished: 1
+  max_failed_task_runs: 0
+  max_action_bound_voice_events: 0
+  require_runtime_tiers:
+    - validated_sim

@@ -64,7 +64,10 @@ class TaskNodePublishers:
         )
 
     def send_hardware_command(self, payload: dict[str, Any]) -> None:
-        self._hardware_cmd_pub.publish(self._String(data=json.dumps(payload, ensure_ascii=False)))
+        envelope = dict(payload)
+        envelope.setdefault('producer', 'task_orchestrator')
+        envelope.setdefault('command_plane', 'task_control')
+        self._hardware_cmd_pub.publish(self._String(data=json.dumps(envelope, ensure_ascii=False)))
 
     def publish_selected_target(self, payload: dict[str, Any]) -> None:
         self._selected_target_pub.publish(self._String(data=json.dumps(payload, ensure_ascii=False)))
@@ -180,6 +183,7 @@ class TaskNodePublishers:
             request_id=getattr(current, 'request_id', None),
             correlation_id=getattr(current, 'correlation_id', None),
             task_run_id=getattr(current, 'task_run_id', None),
+            episode_id=getattr(current, 'episode_id', None),
             stage=stage or (getattr(current, 'stage', '') or phase.lower()),
             error_code=error_code,
             operator_actionable=operator_actionable,

@@ -1,0 +1,161 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+schema_version: 4
+compatibility:
+  official_runtime:
+    lane: sim_preview
+    release_track: official_active
+    lifecycle: compatibility
+  sim:
+    lane: sim_preview
+    release_track: official_active
+    lifecycle: compatibility
+  authoritative_runtime:
+    lane: sim_authoritative
+    release_track: official_active
+    lifecycle: compatibility
+  sim_validated:
+    lane: sim_authoritative
+    release_track: official_active
+    lifecycle: compatibility
+  sim_perception_realistic:
+    lane: sim_perception_preview
+    release_track: official_active
+    lifecycle: compatibility
+  real:
+    lane: real_preview
+    release_track: official_active
+    lifecycle: compatibility
+  hybrid:
+    lane: hybrid_preview
+    release_track: official_active
+    lifecycle: compatibility
+  hw:
+    lane: hw_preview
+    release_track: official_active
+    lifecycle: compatibility
+  full_demo:
+    lane: full_demo_preview
+    release_track: official_active
+    lifecycle: compatibility
+  full_demo_validated:
+    lane: full_demo_authoritative
+    release_track: official_active
+    lifecycle: compatibility
+experimental:
+  experimental_real_candidate:
+    lane: live_control
+    release_track: experimental
+    lifecycle: experimental
+  experimental_real_validated_live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: experimental
+  experimental_validated_live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: experimental
+  experimental_live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: experimental
+  experimental_live_proto:
+    lane: live_proto
+    release_track: experimental
+    lifecycle: experimental
+  experimental_real_proto:
+    lane: live_proto
+    release_track: experimental
+    lifecycle: experimental
+  experimental_live_control:
+    lane: live_control
+    release_track: experimental
+    lifecycle: experimental
+retired:
+  real_authoritative:
+    lane: live_control
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_candidate
+    retirement_phase: 2026-q4
+  real_authoritative_live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_validated_live
+    retirement_phase: 2026-q4
+  real_validated:
+    lane: live_control
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_candidate
+    retirement_phase: 2026-q4
+  validated_live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_validated_live
+    retirement_phase: 2026-q4
+  live:
+    lane: real_validated_live
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_validated_live
+    retirement_phase: 2026-q4
+  real_proto:
+    lane: live_proto
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_real_proto
+    retirement_phase: 2026-q4
+  real_control:
+    lane: live_control
+    release_track: experimental
+    lifecycle: retired_compatibility
+    replacement: experimental_live_control
+    retirement_phase: 2026-q4
+resolved:
+  active:
+    official_runtime: sim_preview
+    sim: sim_preview
+    authoritative_runtime: sim_authoritative
+    sim_validated: sim_authoritative
+    sim_perception_realistic: sim_perception_preview
+    real: real_preview
+    hybrid: hybrid_preview
+    hw: hw_preview
+    full_demo: full_demo_preview
+    full_demo_validated: full_demo_authoritative
+    experimental_real_candidate: live_control
+    experimental_real_validated_live: real_validated_live
+    experimental_validated_live: real_validated_live
+    experimental_live: real_validated_live
+    experimental_live_proto: live_proto
+    experimental_real_proto: live_proto
+    experimental_live_control: live_control
+  compatibility:
+    official_runtime: sim_preview
+    sim: sim_preview
+    authoritative_runtime: sim_authoritative
+    sim_validated: sim_authoritative
+    sim_perception_realistic: sim_perception_preview
+    real: real_preview
+    hybrid: hybrid_preview
+    hw: hw_preview
+    full_demo: full_demo_preview
+    full_demo_validated: full_demo_authoritative
+  experimental:
+    experimental_real_candidate: live_control
+    experimental_real_validated_live: real_validated_live
+    experimental_validated_live: real_validated_live
+    experimental_live: real_validated_live
+    experimental_live_proto: live_proto
+    experimental_real_proto: live_proto
+    experimental_live_control: live_control
+  retired:
+    real_authoritative: live_control
+    real_authoritative_live: real_validated_live
+    real_validated: live_control
+    validated_live: real_validated_live
+    live: real_validated_live
+    real_proto: live_proto
+    real_control: live_control

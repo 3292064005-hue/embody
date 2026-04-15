@@ -26,7 +26,17 @@ class FramePublisher:
         if not isinstance(frame, CaptureFrame):
             raise ValueError('frame must be a CaptureFrame instance')
         summary = asdict(frame)
+        metadata = dict(source_metadata or {})
+        payload = summary.get('payload') if isinstance(summary.get('payload'), dict) else {}
+        provenance = dict(payload.get('visualProvenance') or {}) if isinstance(payload, dict) else {}
         summary['timestampSec'] = timestamp_sec
-        summary['sourceMetadata'] = dict(source_metadata or {})
-        summary['metadata'] = dict(source_metadata or {})
+        summary['sourceMetadata'] = metadata
+        summary['metadata'] = metadata
+        summary['sourceType'] = str(metadata.get('sourceType', payload.get('sourceType', 'unknown')) or 'unknown')
+        if provenance:
+            summary['sourceClass'] = str(provenance.get('sourceClass', payload.get('sourceClass', 'unknown')) or 'unknown')
+            summary['frameIngressLive'] = bool(provenance.get('frameIngressLive', payload.get('frameIngressLive', False)))
+            summary['cameraLive'] = bool(provenance.get('cameraLive', payload.get('cameraLive', False)))
+            summary['renderablePreview'] = bool(provenance.get('renderablePreview', payload.get('renderablePreview', False)))
+            summary['visualProvenance'] = provenance
         return summary

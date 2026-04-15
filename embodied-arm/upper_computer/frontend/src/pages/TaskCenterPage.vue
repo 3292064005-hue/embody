@@ -2,7 +2,7 @@
   <section class="task-page">
     <div class="grid-4 summary-grid">
       <MetricCard label="任务工作台" :value="runtimeFeatures.runtimeBadge" :hint="runtimeFeatures.taskStartReason" :tone="runtimeFeatures.taskWorkbenchVisible ? 'success' : 'warning'" />
-      <MetricCard label="当前模板数" :value="taskStore.templates.length" hint="冻结任务入口数量" tone="success" />
+      <MetricCard label="执行背板" :value="executionBackboneLabel" :hint="executionModeLabel" :tone="readinessStore.executionBackboneSummary?.authoritativeTransport ? 'success' : 'warning'" />
       <MetricCard label="历史成功率" :value="`${taskStore.successRate}%`" hint="按历史任务统计" :tone="taskStore.successRate >= 80 ? 'success' : 'warning'" />
       <MetricCard label="当前阶段" :value="taskStore.currentTask?.stage || 'idle'" :hint="runtimeFeatures.runtimeLabel" :tone="taskStore.currentTask ? 'warning' : 'success'" />
     </div>
@@ -16,12 +16,38 @@
       :description="runtimeFeatures.taskStartReason"
     />
 
+    <div class="grid-2 content-grid">
+      <div class="panel page-panel">
+        <div class="panel-title">运行时收口</div>
+        <div class="meta-grid" style="margin-top: 12px">
+          <div><strong>delivery track：</strong>{{ readinessStore.runtimeDeliveryTrack || '--' }}</div>
+          <div><strong>runtime profile：</strong>{{ readinessStore.executionBackboneSummary?.requestedRuntimeProfile || '--' }}</div>
+          <div><strong>active lane：</strong>{{ readinessStore.executionBackboneSummary?.activeRuntimeLane || '--' }}</div>
+          <div><strong>firmware profile：</strong>{{ readinessStore.firmwareSemanticProfile || '--' }}</div>
+        </div>
+        <div class="subtle" style="margin-top: 10px">{{ readinessStore.firmwareSemanticMessage || '固件语义未上报。' }}</div>
+      </div>
+      <div class="panel page-panel">
+        <div class="panel-title">validated_live gate</div>
+        <div class="gate-grid" style="margin-top: 12px">
+          <div><strong>repo：</strong>{{ readinessStore.releaseGates?.repoGate || 'not_executed' }}</div>
+          <div><strong>target：</strong>{{ readinessStore.releaseGates?.targetGate || 'not_executed' }}</div>
+          <div><strong>HIL：</strong>{{ readinessStore.releaseGates?.hilGate || 'not_executed' }}</div>
+          <div><strong>checklist：</strong>{{ readinessStore.releaseGates?.releaseChecklistGate || 'not_executed' }}</div>
+          <div class="gate-wide"><strong>release：</strong>{{ readinessStore.releaseGates?.releaseGate || 'not_executed' }}</div>
+        </div>
+        <div v-if="runtimeFeatures.promotionControlled && runtimeFeatures.promotionMissing.length" class="subtle" style="margin-top: 10px">
+          缺失项：{{ runtimeFeatures.promotionMissing.join(' / ') }}
+        </div>
+      </div>
+    </div>
+
     <div v-if="runtimeFeatures.taskWorkbenchVisible" class="panel page-panel">
       <div v-if="runtimeFeatures.promotionControlled && !runtimeFeatures.promotionEffective" class="subtle page-note">当前产品线受 promotion receipt 治理，未生效前仅允许只读展示。</div>
       <div class="header-row">
         <div>
           <div class="panel-title">任务中心</div>
-          <div class="subtle">模板、执行策略、历史任务与审计友好的发令入口</div>
+          <div class="subtle">模板、执行策略、任务图与审计友好的发令入口</div>
         </div>
       </div>
       <div class="grid-2 content-grid">
@@ -36,13 +62,18 @@
           <div class="subtle" style="margin-top: 10px">当前选择：{{ taskStore.currentTemplate?.name || '--' }}</div>
         </div>
         <div class="panel inner-panel">
-          <div class="panel-title">执行策略建议</div>
-          <ul class="bullet-list subtle">
-            <li>任务启动前显式确认模板与目标类别，避免误抓。</li>
-            <li>批处理任务必须输出批次汇总与失败明细。</li>
-            <li>故障态、只读降级态、未回零态均禁止启动新任务。</li>
-            <li>任务停止、回零、急停等动作均进入命令审计链。</li>
-          </ul>
+          <div class="panel-title">任务图</div>
+          <div v-if="taskStore.currentTemplate?.taskGraph" class="task-graph">
+            <div class="subtle">graphKey：{{ taskStore.currentTemplate?.taskGraph?.graphKey }}</div>
+            <ol class="bullet-list subtle ordered-list">
+              <li v-for="node in taskStore.currentTemplate?.taskGraph?.nodes || []" :key="node.id">
+                <strong>{{ node.label }}</strong>
+                <span class="node-meta">{{ node.kind }} / {{ node.id }}</span>
+              </li>
+            </ol>
+            <div class="subtle">恢复策略：{{ taskStore.currentTemplate?.taskGraph?.recoveryPolicy?.mode || '--' }}</div>
+          </div>
+          <div v-else class="subtle" style="margin-top: 12px">当前模板未暴露任务图。</div>
         </div>
       </div>
     </div>
@@ -80,6 +111,8 @@ import { deriveRuntimeFeatureState } from '@/models/runtimeFeatures';
 const taskStore = useTaskStore();
 const readinessStore = useReadinessStore();
 const runtimeFeatures = computed(() => deriveRuntimeFeatureState(readinessStore.$state));
+const executionBackboneLabel = computed(() => readinessStore.executionBackboneSummary?.backboneLabel || 'Unknown Backbone');
+const executionModeLabel = computed(() => readinessStore.executionBackboneSummary?.executionModeLabel || readinessStore.executionBackboneSummary?.executionMode || '--');
 
 function handleTemplateRowClick(row: TaskTemplate) {
   taskStore.setSelectedTemplate(row.id);
@@ -93,6 +126,10 @@ function handleTemplateRowClick(row: TaskTemplate) {
 .content-grid { margin-top: 16px; }
 .inner-panel { padding: 16px; }
 .bullet-list { margin: 14px 0 0; padding-left: 18px; line-height: 1.8; }
+.ordered-list { list-style: decimal; }
 .page-alert { margin-bottom: 4px; }
 .page-note { margin-top: 10px; line-height: 1.7; }
+.meta-grid, .gate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.gate-wide { grid-column: 1 / -1; }
+.node-meta { margin-left: 8px; opacity: 0.7; }
 </style>

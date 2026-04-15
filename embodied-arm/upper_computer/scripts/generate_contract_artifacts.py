@@ -13,14 +13,26 @@ import yaml
 if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from runtime_authority import derived_product_lines, derived_promotion_receipts, derived_runtime_lanes, derived_task_manifest, load_runtime_authority
+from runtime_authority import (
+    derived_firmware_semantic_profiles,
+    derived_product_lines,
+    derived_promotion_receipts,
+    derived_runtime_governance,
+    derived_runtime_lane_aliases,
+    derived_runtime_lanes,
+    derived_task_manifest,
+    derived_validated_live_release_slice,
+    load_runtime_authority,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_SRC = ROOT / 'backend' / 'embodied_arm_ws' / 'src'
 DOCS = ROOT / 'docs'
 DOCS_GENERATED = DOCS / 'generated'
 JSON_PATH = DOCS_GENERATED / 'runtime_contract_manifest.json'
+SCHEMA_PATH = DOCS_GENERATED / 'runtime_contract_schema.json'
 MD_PATH = DOCS_GENERATED / 'runtime_contract_summary.md'
+ACCEPTANCE_MATRIX_PATH = DOCS_GENERATED / 'runtime_acceptance_matrix.md'
 INDEX_PATH = DOCS / 'ROS2_INTERFACE_INDEX.md'
 CONTRACT_INDEX_PATH = DOCS / 'CONTRACT_INDEX.md'
 TOPIC_NAMES = BACKEND_SRC / 'arm_common' / 'arm_common' / 'topic_names.py'
@@ -205,13 +217,17 @@ def _extract_runtime_lane_capabilities() -> dict[str, dict[str, Any]]:
         capabilities[str(lane_name)] = {
             'frameIngressMode': str(lane_payload.get('frame_ingress_mode', 'reserved_endpoint')),
             'forwardHardwareCommands': bool(lane_payload.get('forward_hardware_commands', False)),
-            'hardwareExecutionMode': str(lane_payload.get('hardware_execution_mode', 'protocol_bridge')),
+            'hardwareExecutionMode': str(lane_payload.get('hardware_execution_mode', 'protocol_simulator')),
+            'executionBackbone': str(lane_payload.get('execution_backbone', 'protocol_simulator')),
+            'executionBackboneDeclared': bool(lane_payload.get('execution_backbone_declared', True)),
             'esp32StreamSemantic': str(lane_payload.get('esp32_stream_semantic', 'reserved')),
             'esp32FrameIngressLive': bool(lane_payload.get('esp32_frame_ingress_live', False)),
             'planningCapability': str(lane_payload.get('planning_capability', 'contract_only')),
             'planningAuthoritative': bool(lane_payload.get('planning_authoritative', False)),
             'planningBackendDeclared': bool(lane_payload.get('planning_backend_declared', True)),
             'publicRuntimeTier': str(lane_payload.get('public_runtime_tier', '') or ''),
+            'runtimeDeliveryTrack': str(lane_payload.get('runtime_delivery_track', 'official_active')),
+            'officialRuntimeLane': bool(lane_payload.get('official_runtime_lane', False)),
         }
     return capabilities
 
@@ -221,7 +237,7 @@ def _derive_runtime_tier(lane_payload: dict[str, Any]) -> str:
     if public_runtime_tier in {'preview', 'validated_sim', 'validated_live'}:
         return public_runtime_tier
     planning_capability = str(lane_payload.get('planningCapability', 'contract_only') or 'contract_only')
-    execution_mode = str(lane_payload.get('hardwareExecutionMode', 'protocol_bridge') or 'protocol_bridge')
+    execution_mode = str(lane_payload.get('hardwareExecutionMode', 'protocol_simulator') or 'protocol_simulator')
     planning_authoritative = bool(lane_payload.get('planningAuthoritative', False))
     if planning_authoritative and execution_mode == 'ros2_control_live':
         return 'validated_live'
@@ -230,13 +246,18 @@ def _derive_runtime_tier(lane_payload: dict[str, Any]) -> str:
     return 'preview'
 
 
-def _build_product_line_capabilities(lane_capabilities: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _build_product_line_capabilities(lane_capabilities: dict[str, dict[str, Any]], governance: dict[str, Any]) -> dict[str, dict[str, Any]]:
     authority = load_runtime_authority(RUNTIME_AUTHORITY)
     configured = derived_product_lines(authority)
+    official_runtime_lanes = set(str(value) for value in governance.get('officialRuntimeLanes', []))
     result: dict[str, dict[str, Any]] = {}
     for tier_name in ('preview', 'validated_sim', 'validated_live'):
         tier_payload = configured.get(tier_name, {}) if isinstance(configured, dict) else {}
-        lanes = [lane_name for lane_name, lane_payload in sorted(lane_capabilities.items()) if lane_payload.get('runtimeTier') == tier_name]
+        lanes = [
+            lane_name
+            for lane_name, lane_payload in sorted(lane_capabilities.items())
+            if lane_payload.get('runtimeTier') == tier_name and lane_name in official_runtime_lanes
+        ]
         result[tier_name] = {
             'label': str(tier_payload.get('label', tier_name)),
             'description': str(tier_payload.get('description', '')),
@@ -246,6 +267,7 @@ def _build_product_line_capabilities(lane_capabilities: dict[str, dict[str, Any]
             'promotionControlled': bool(tier_payload.get('promotion_controlled', False)),
             'promotionEffective': bool(tier_payload.get('promotion_effective', False)),
             'promotionMissing': [str(value) for value in tier_payload.get('promotion_missing', [])],
+            'releaseChannel': str(tier_payload.get('release_channel', 'official_active')),
             'lanes': lanes,
         }
     return result
@@ -272,6 +294,12 @@ def _load_task_capabilities() -> dict[str, Any]:
             'requiredRuntimeTier': str(item.get('required_runtime_tier', 'validated_sim')),
             'taskProfilePath': str(item.get('task_profile_path', '') or ''),
             'operatorHint': str(item.get('operator_hint', '')),
+            'capabilityTags': [str(value) for value in item.get('capability_tags', []) if str(value).strip()],
+            'preconditions': [str(value) for value in item.get('preconditions', []) if str(value).strip()],
+            'sequenceMode': str(item.get('sequence_mode', 'single_target') or 'single_target'),
+            'pluginKey': str(item.get('plugin_key', item.get('sequence_mode', 'single_target')) or 'single_target'),
+            'graphKey': str(item.get('graph_key', '') or ''),
+            'taskGraph': dict(item.get('task_graph', {}) or {}),
         })
     return {
         'schemaVersion': int(payload.get('schema_version', 1) or 1),
@@ -311,6 +339,19 @@ def _load_runtime_promotion_receipts() -> dict[str, dict[str, Any]]:
         }
     return result
 
+
+def _load_runtime_governance() -> dict[str, Any]:
+    authority = load_runtime_authority(RUNTIME_AUTHORITY)
+    governance = derived_runtime_governance(authority)
+    return {
+        'defaultRuntimeLane': governance.default_runtime_lane,
+        'officialProductLines': list(governance.official_product_lines),
+        'experimentalProductLines': list(governance.experimental_product_lines),
+        'officialRuntimeLanes': list(governance.official_runtime_lanes),
+        'experimentalRuntimeLanes': list(governance.experimental_runtime_lanes),
+        'laneClassification': dict(governance.lane_classification),
+    }
+
 def _camel_name(constant_name: str) -> str:
     parts = constant_name.lower().split('_')
     return parts[0] + ''.join(part.title() for part in parts[1:])
@@ -328,11 +369,93 @@ def _load_manual_command_limits() -> dict[str, float]:
         'maxJogJointStepDeg': float(manual.get('max_jog_joint_step_deg', 10.0)),
     }
 
+def _build_runtime_acceptance_matrix(
+    authority: dict[str, Any],
+    lane_capabilities: dict[str, dict[str, Any]],
+    runtime_governance: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    product_lines = derived_product_lines(authority)
+    lane_payloads = derived_runtime_lanes(authority)
+    raw_lanes = authority.get('runtime_lanes', {}) if isinstance(authority.get('runtime_lanes'), dict) else {}
+    receipts = derived_promotion_receipts(authority)
+    matrix: dict[str, dict[str, Any]] = {}
+    official_lanes = set(runtime_governance['officialRuntimeLanes'])
+    experimental_lanes = set(runtime_governance['experimentalRuntimeLanes'])
+    for lane_name, lane_payload in sorted(lane_payloads.items()):
+        raw_lane = raw_lanes.get(lane_name, {}) if isinstance(raw_lanes.get(lane_name), dict) else {}
+        intended_tier = str(raw_lane.get('intended_product_line', lane_payload.get('public_runtime_tier', 'preview')) or 'preview')
+        capability = lane_capabilities[str(lane_name)]
+        checks: list[str] = []
+        required_evidence: list[str] = []
+        if lane_name in official_lanes and intended_tier == 'preview':
+            checks = [
+                'public tier must remain preview',
+                'task execution must stay non-interactive',
+                'forward_hardware_commands must remain false',
+            ]
+        elif lane_name in official_lanes and intended_tier == 'validated_sim':
+            checks = [
+                'public tier must be validated_sim',
+                'planning_capability must be validated_sim',
+                'hardware_execution_mode must be authoritative_simulation',
+                'forward_hardware_commands must remain true',
+                'task execution must be interactive',
+            ]
+        elif lane_name in experimental_lanes:
+            checks = [
+                'delivery track must remain experimental',
+                'planning_capability must remain validated_live or live-candidate scoped',
+                'hardware_execution_mode must remain ros2_control_live or candidate live equivalent',
+                'public tier must fail closed to preview until promotion is effective',
+            ]
+            required_evidence = list(receipts.get('validated_live', {}).get('required_evidence', []))
+        else:
+            checks = ['lane classification must match runtime governance']
+        matrix[str(lane_name)] = {
+            'deliveryTrack': capability['runtimeDeliveryTrack'],
+            'officialRuntimeLane': capability['officialRuntimeLane'],
+            'intendedProductLine': intended_tier,
+            'effectivePublicRuntimeTier': capability['publicRuntimeTier'],
+            'taskWorkbenchVisible': bool(lane_payload.get('task_workbench_visible', False)),
+            'taskExecutionInteractive': bool(lane_payload.get('task_execution_interactive', False)),
+            'checks': checks,
+            'requiredEvidence': required_evidence,
+            'releaseChannel': 'experimental' if lane_name in experimental_lanes else str(product_lines[intended_tier]['release_channel']),
+        }
+    return matrix
+
+
+def build_runtime_acceptance_markdown(manifest: dict[str, Any]) -> str:
+    lines = [
+        '# Runtime Acceptance Matrix (Generated)',
+        '',
+        'This file is generated from `runtime_authority.yaml`. Do not edit manually.',
+        '',
+    ]
+    for lane_name, payload in sorted(manifest['runtime']['acceptanceMatrix'].items()):
+        lines.append(f"## `{lane_name}`")
+        lines.append(f"- deliveryTrack: `{payload['deliveryTrack']}`")
+        lines.append(f"- officialRuntimeLane: `{payload['officialRuntimeLane']}`")
+        lines.append(f"- intendedProductLine: `{payload['intendedProductLine']}`")
+        lines.append(f"- effectivePublicRuntimeTier: `{payload['effectivePublicRuntimeTier']}`")
+        lines.append(f"- taskWorkbenchVisible: `{payload['taskWorkbenchVisible']}`")
+        lines.append(f"- taskExecutionInteractive: `{payload['taskExecutionInteractive']}`")
+        lines.append('- acceptance checks:')
+        for check in payload['checks']:
+            lines.append(f'  - {check}')
+        if payload['requiredEvidence']:
+            lines.append('- required evidence:')
+            for item in payload['requiredEvidence']:
+                lines.append(f'  - `{item}`')
+        lines.append('')
+    return '\n'.join(lines)
+
+
 def build_contract_manifest() -> dict[str, Any]:
     topics = _extract_class_constants(TOPIC_NAMES, 'TopicNames').values
     services = _extract_class_constants(SERVICE_NAMES, 'ServiceNames').values
     actions = _extract_class_constants(ACTION_NAMES, 'ActionNames').values
-    launch_literals = _extract_module_literals(LAUNCH_FACTORY, 'RUNTIME_CORE_PACKAGES', 'RUNTIME_SUPERVISION_PACKAGES', 'RUNTIME_LANE_ALIASES')
+    launch_literals = _extract_module_literals(LAUNCH_FACTORY, 'RUNTIME_CORE_PACKAGES', 'RUNTIME_SUPERVISION_PACKAGES')
     gateway_constants = _extract_contract_constants()
 
     public_topics = {name: topics[name] for name in sorted(PUBLIC_TOPIC_KEYS)}
@@ -344,12 +467,19 @@ def build_contract_manifest() -> dict[str, Any]:
     topic_manifest.update({_camel_name(name): value for name, value in compat_topics.items()})
     topic_manifest.update({_camel_name(name): value for name, value in internal_topics.items()})
 
+    authority = load_runtime_authority(RUNTIME_AUTHORITY)
     lane_capabilities = _extract_runtime_lane_capabilities()
     for lane_payload in lane_capabilities.values():
         lane_payload['runtimeTier'] = _derive_runtime_tier(lane_payload)
+    runtime_governance = _load_runtime_governance()
+    runtime_acceptance_matrix = _build_runtime_acceptance_matrix(authority, lane_capabilities, runtime_governance)
+    alias_manifest = derived_runtime_lane_aliases(authority)
+    firmware_profiles = derived_firmware_semantic_profiles(authority)
+    validated_live_backbone = authority.get('validated_live_backbones', {}).get('validated_live', {}) if isinstance(authority.get('validated_live_backbones'), dict) else {}
+    validated_live_release_slice = derived_validated_live_release_slice(authority)
     task_capabilities = _load_task_capabilities()
     return {
-        'schemaVersion': '1.5',
+        'schemaVersion': '1.6',
         'generatedFrom': 'scripts/generate_contract_artifacts.py',
         'readiness': {
             'publicFields': list(gateway_constants['PUBLIC_READINESS_FIELDS']),
@@ -375,11 +505,21 @@ def build_contract_manifest() -> dict[str, Any]:
         'runtime': {
             'corePackages': sorted(launch_literals['RUNTIME_CORE_PACKAGES']),
             'supervisionPackages': sorted(launch_literals['RUNTIME_SUPERVISION_PACKAGES']),
-            'laneAliases': {key: launch_literals['RUNTIME_LANE_ALIASES'][key] for key in sorted(launch_literals['RUNTIME_LANE_ALIASES'])},
+            'officialRuntimeLanes': list(runtime_governance['officialRuntimeLanes']),
+            'experimentalRuntimeLanes': list(runtime_governance['experimentalRuntimeLanes']),
+            'laneAliases': {key: alias_manifest['resolved']['active'][key] for key in sorted(alias_manifest['resolved']['active'])},
+            'compatibilityLaneAliases': {key: alias_manifest['resolved']['compatibility'][key] for key in sorted(alias_manifest['resolved']['compatibility'])},
+            'experimentalLaneAliases': {key: alias_manifest['resolved']['experimental'][key] for key in sorted(alias_manifest['resolved']['experimental'])},
+            'legacyExperimentalLaneAliases': {key: alias_manifest['resolved']['retired'][key] for key in sorted(alias_manifest['resolved']['retired'])},
             'laneCapabilities': lane_capabilities,
+            'governance': runtime_governance,
+            'acceptanceMatrix': runtime_acceptance_matrix,
             'promotionReceipts': _load_runtime_promotion_receipts(),
-            'productLineCapabilities': _build_product_line_capabilities(lane_capabilities),
+            'productLineCapabilities': _build_product_line_capabilities(lane_capabilities, runtime_governance),
             'packageOwnership': {key: PACKAGE_OWNERSHIP[key] for key in sorted(PACKAGE_OWNERSHIP)},
+            'validatedLiveBackbone': dict(validated_live_backbone),
+            'validatedLiveReleaseSlice': dict(validated_live_release_slice),
+            'firmwareSemanticProfiles': firmware_profiles.get('esp32', {}),
         },
         'tasks': task_capabilities,
     }
@@ -445,6 +585,11 @@ def build_contract_markdown(manifest: dict[str, Any]) -> str:
     for name, value in manifest['ros2']['actions'].items():
         lines.append(f'- `{name}`: `{value}`')
     lines.append('')
+    lines.append('## Runtime governance')
+    lines.append(f"- defaultRuntimeLane: `{manifest['runtime']['governance']['defaultRuntimeLane']}`")
+    lines.append(f"- officialRuntimeLanes: {', '.join(f'`{item}`' for item in manifest['runtime']['governance']['officialRuntimeLanes'])}")
+    lines.append(f"- experimentalRuntimeLanes: {', '.join(f'`{item}`' for item in manifest['runtime']['governance']['experimentalRuntimeLanes'])}")
+    lines.append('')
     lines.append('## Runtime lanes')
     for alias, target in sorted(manifest['runtime']['laneAliases'].items()):
         lines.append(f'- alias: `{alias}` -> `{target}`')
@@ -454,11 +599,25 @@ def build_contract_markdown(manifest: dict[str, Any]) -> str:
         lines.append(
             '- '
             f'`{lane_name}`: '
+            f"runtimeDeliveryTrack=`{lane_payload['runtimeDeliveryTrack']}`, "
             f"frameIngressMode=`{lane_payload['frameIngressMode']}`, "
             f"forwardHardwareCommands=`{lane_payload['forwardHardwareCommands']}`, "
             f"hardwareExecutionMode=`{lane_payload['hardwareExecutionMode']}`, "
             f"planningCapability=`{lane_payload['planningCapability']}`, "
             f"planningAuthoritative=`{lane_payload['planningAuthoritative']}`"
+        )
+    lines.append('')
+    lines.append('## Runtime acceptance matrix')
+    for lane_name, payload in sorted(manifest['runtime']['acceptanceMatrix'].items()):
+        rendered_checks = '; '.join(payload['checks']) or 'none'
+        rendered_evidence = ', '.join(f'`{item}`' for item in payload['requiredEvidence']) or 'none'
+        lines.append(
+            '- '
+            f'`{lane_name}`: '
+            f"deliveryTrack=`{payload['deliveryTrack']}`, "
+            f"effectivePublicRuntimeTier=`{payload['effectivePublicRuntimeTier']}`, "
+            f"checks={rendered_checks}, "
+            f"requiredEvidence={rendered_evidence}"
         )
     lines.append('')
     lines.append('## Runtime promotion receipts')
@@ -534,6 +693,9 @@ def build_interface_index(manifest: dict[str, Any]) -> str:
     lines.extend(['', '## Package ownership'])
     for role, package in sorted(PACKAGE_OWNERSHIP.items()):
         lines.append(f'- {role}: `{package}`')
+    lines.extend(['', '## Runtime governance'])
+    lines.append(f"- official lanes: {', '.join(f'`{item}`' for item in manifest['runtime']['governance']['officialRuntimeLanes'])}")
+    lines.append(f"- experimental lanes: {', '.join(f'`{item}`' for item in manifest['runtime']['governance']['experimentalRuntimeLanes'])}")
     lines.extend(['', '## Runtime lanes'])
     for alias, target in sorted(manifest['runtime']['laneAliases'].items()):
         lines.append(f'- `{alias}` -> `{target}`')
@@ -572,6 +734,9 @@ def build_gateway_runtime_contract(manifest: dict[str, Any]) -> str:
         f"HARDWARE_AUTHORITY_FIELDS = {tuple(hardware['authorityFields'])!r}",
         f"SYSTEM_SEMANTIC_FIELDS = {tuple(system['semanticFields'])!r}",
         f"COMPATIBILITY_ALIASES = {dict(system['compatibilityAliases'])!r}",
+        f"OFFICIAL_RUNTIME_LANES = {tuple(manifest['runtime']['governance']['officialRuntimeLanes'])!r}",
+        f"EXPERIMENTAL_RUNTIME_LANES = {tuple(manifest['runtime']['governance']['experimentalRuntimeLanes'])!r}",
+        f"RUNTIME_LANE_CLASSIFICATION = {dict(manifest['runtime']['governance']['laneClassification'])!r}",
         f"PRODUCT_LINE_CAPABILITIES = {manifest['runtime']['productLineCapabilities']!r}",
         f"TASK_CAPABILITY_TEMPLATES = {manifest['tasks']['templates']!r}",
         '',
@@ -683,6 +848,9 @@ def build_frontend_runtime_contract(manifest: dict[str, Any]) -> str:
         f"export const MANUAL_COMMAND_LIMITS = {json.dumps(hardware['manualCommandLimits'], ensure_ascii=False, indent=2)} as const;" ,
         f"export const SYSTEM_SEMANTIC_FIELDS = {json.dumps(system['semanticFields'], ensure_ascii=False)} as const;" ,
         f"export const COMPATIBILITY_ALIASES = {json.dumps(system['compatibilityAliases'], ensure_ascii=False, indent=2)} as const;" ,
+        f"export const OFFICIAL_RUNTIME_LANES = {json.dumps(manifest['runtime']['governance']['officialRuntimeLanes'], ensure_ascii=False, indent=2)} as const;" ,
+        f"export const EXPERIMENTAL_RUNTIME_LANES = {json.dumps(manifest['runtime']['governance']['experimentalRuntimeLanes'], ensure_ascii=False, indent=2)} as const;" ,
+        f"export const RUNTIME_LANE_CLASSIFICATION = {json.dumps(manifest['runtime']['governance']['laneClassification'], ensure_ascii=False, indent=2)} as const;" ,
         f"export const PRODUCT_LINE_CAPABILITIES = {json.dumps(manifest['runtime']['productLineCapabilities'], ensure_ascii=False, indent=2)} as const;" ,
         f"export const TASK_CAPABILITY_TEMPLATES = {json.dumps(manifest['tasks']['templates'], ensure_ascii=False, indent=2)} as const;" ,
         '',
@@ -693,6 +861,23 @@ def build_frontend_runtime_contract(manifest: dict[str, Any]) -> str:
     ])
 
 
+def build_contract_schema(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Return one lightweight JSON schema companion for generated consumers."""
+    return {
+        'schemaVersion': manifest['schemaVersion'],
+        'runtime': {
+            'publicReadinessFields': manifest['readiness']['publicFields'],
+            'runtimeLaneKeys': sorted(manifest['runtime']['laneCapabilities'].keys()),
+            'productLineKeys': sorted(manifest['runtime']['productLineCapabilities'].keys()),
+            'validatedLiveReleaseSlice': dict(manifest['runtime']['validatedLiveReleaseSlice']),
+        },
+        'tasks': {
+            'templateIds': [item['id'] for item in manifest['tasks']['templates']],
+            'graphKeys': [item.get('graphKey', '') for item in manifest['tasks']['templates']],
+        },
+    }
+
+
 def build_contract_index() -> str:
     return '\n'.join([
         '# Contract Index',
@@ -701,14 +886,17 @@ def build_contract_index() -> str:
         '',
         '## Generated artifacts',
         '- `generated/runtime_contract_manifest.json`',
+        '- `generated/runtime_contract_schema.json`',
         '- `generated/runtime_contract_summary.md`',
+        '- `generated/runtime_acceptance_matrix.md`',
         '- `ROS2_INTERFACE_INDEX.md`',
         '',
         '## Source of truth',
         '- `backend/embodied_arm_ws/src/arm_common/arm_common/topic_names.py`',
         '- `backend/embodied_arm_ws/src/arm_common/arm_common/service_names.py`',
         '- `backend/embodied_arm_ws/src/arm_common/arm_common/action_names.py`',
-        '- `backend/embodied_arm_ws/src/arm_bringup/arm_bringup/launch_factory.py`',
+        '- `backend/embodied_arm_ws/src/arm_bringup/config/runtime_authority.yaml`',
+        '- `backend/embodied_arm_ws/src/arm_bringup/arm_bringup/launch_factory.py` (consumes generated lane projection only)',
         '- `backend/embodied_arm_ws/src/arm_readiness_manager/arm_readiness_manager/contract_defs.py`',
         '- `backend/embodied_arm_ws/src/arm_bringup/config/task_capability_manifest.yaml`',
         '- `gateway/generated/runtime_contract.py`',
@@ -719,9 +907,12 @@ def build_contract_index() -> str:
 
 def render_outputs() -> dict[Path, str]:
     manifest = build_contract_manifest()
+    schema = build_contract_schema(manifest)
     return {
         JSON_PATH: json.dumps(manifest, ensure_ascii=False, indent=2) + '\n',
+        SCHEMA_PATH: json.dumps(schema, ensure_ascii=False, indent=2) + '\n',
         MD_PATH: build_contract_markdown(manifest) + '\n',
+        ACCEPTANCE_MATRIX_PATH: build_runtime_acceptance_markdown(manifest) + '\n',
         INDEX_PATH: build_interface_index(manifest) + '\n',
         CONTRACT_INDEX_PATH: build_contract_index() + '\n',
         GATEWAY_RUNTIME_CONTRACT: build_gateway_runtime_contract(manifest),

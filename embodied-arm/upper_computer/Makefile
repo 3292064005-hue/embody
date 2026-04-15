@@ -1,4 +1,4 @@
-.PHONY: test test-backend test-backend-active test-backend-active-consistency test-gateway test-frontend test-frontend-e2e audit lint verify verify-fast verify-repo package clean clean-runtime-state ros-build ros-smoke ros-smoke-sim ros-smoke-real ros-smoke-hybrid contract-test frontend-build target-env-check ros-target-validate target-env-bootstrap ros-target-validate-docker release-gate-report hil-template repo-gate target-gate hil-gate collect-release-evidence
+.PHONY: test test-backend test-backend-full test-backend-active test-backend-active-consistency test-gateway test-frontend test-frontend-e2e audit lint verify verify-fast verify-repo package clean clean-runtime-state ros-build ros-smoke ros-smoke-sim ros-smoke-real ros-smoke-hybrid contract-test frontend-build target-env-check ros-target-validate target-env-bootstrap ros-target-validate-docker release-gate-report hil-template repo-gate target-gate hil-gate collect-release-evidence
 
 ROOT := $(CURDIR)
 BACKEND := $(ROOT)/backend/embodied_arm_ws
@@ -18,6 +18,10 @@ verify-repo:
 test: verify
 
 test-backend:
+	cd $(BACKEND) && python -m pytest -q -c pytest-active.ini
+
+# Full-tree backend regression remains available for compatibility sweeps.
+test-backend-full:
 	cd $(BACKEND) && python -m pytest -q
 
 test-backend-active:
@@ -54,6 +58,7 @@ package:
 clean:
 	find $(ROOT) -type d -name '__pycache__' -prune -exec rm -rf {} +
 	find $(ROOT) -type d -name '.pytest_cache' -prune -exec rm -rf {} +
+	find $(ROOT) -type d -name '.active_overlay' -prune -exec rm -rf {} +
 	find $(ROOT) -type f -name '*.pyc' -delete
 	find $(ROOT) -type f -name '*.tsbuildinfo' -delete
 
@@ -61,19 +66,19 @@ clean-runtime-state:
 	bash scripts/clean_runtime_state.sh
 
 ros-build:
-	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(BACKEND)"; colcon build --symlink-install'
+	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(ROOT)"; ACTIVE_OVERLAY="$$(python scripts/materialize_active_ros_overlay.py --print-root)"; ACTIVE_PACKAGES="$$(python scripts/print_active_ros_packages.py)"; cd "$$ACTIVE_OVERLAY"; colcon build --symlink-install --packages-up-to $$ACTIVE_PACKAGES'
 
 ros-smoke:
-	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(BACKEND)"; test -f install/setup.bash || colcon build --symlink-install; source install/setup.bash; pytest -q tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py'
+	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(ROOT)"; ACTIVE_OVERLAY="$$(python scripts/materialize_active_ros_overlay.py --print-root)"; ACTIVE_PACKAGES="$$(python scripts/print_active_ros_packages.py)"; cd "$$ACTIVE_OVERLAY"; test -f install/setup.bash || colcon build --symlink-install --packages-up-to $$ACTIVE_PACKAGES; source install/setup.bash; cd "$(BACKEND)"; pytest -q -c pytest-active.ini tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py'
 
 ros-smoke-sim:
-	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(BACKEND)"; test -f install/setup.bash || colcon build --symlink-install; source install/setup.bash; ros2 launch arm_bringup runtime_sim.launch.py enable_moveit:=false enable_rviz:=false camera_source:=mock'
+	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(ROOT)"; ACTIVE_OVERLAY="$$(python scripts/materialize_active_ros_overlay.py --print-root)"; ACTIVE_PACKAGES="$$(python scripts/print_active_ros_packages.py)"; cd "$$ACTIVE_OVERLAY"; test -f install/setup.bash || colcon build --symlink-install --packages-up-to $$ACTIVE_PACKAGES; source install/setup.bash; ros2 launch arm_bringup runtime_sim.launch.py enable_moveit:=false enable_rviz:=false camera_source:=mock'
 
 ros-smoke-real:
-	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(BACKEND)"; test -f install/setup.bash || colcon build --symlink-install; source install/setup.bash; ros2 launch arm_bringup runtime_real.launch.py enable_moveit:=false enable_rviz:=false camera_source:=topic'
+	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(ROOT)"; ACTIVE_OVERLAY="$$(python scripts/materialize_active_ros_overlay.py --print-root)"; ACTIVE_PACKAGES="$$(python scripts/print_active_ros_packages.py)"; cd "$$ACTIVE_OVERLAY"; test -f install/setup.bash || colcon build --symlink-install --packages-up-to $$ACTIVE_PACKAGES; source install/setup.bash; ros2 launch arm_bringup runtime_real.launch.py enable_moveit:=false enable_rviz:=false camera_source:=topic'
 
 ros-smoke-hybrid:
-	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(BACKEND)"; test -f install/setup.bash || colcon build --symlink-install; source install/setup.bash; ros2 launch arm_bringup runtime_hybrid.launch.py enable_moveit:=false enable_rviz:=false camera_source:=topic'
+	bash -lc 'set -euo pipefail; source "$(ROS_SETUP)"; cd "$(ROOT)"; ACTIVE_OVERLAY="$$(python scripts/materialize_active_ros_overlay.py --print-root)"; ACTIVE_PACKAGES="$$(python scripts/print_active_ros_packages.py)"; cd "$$ACTIVE_OVERLAY"; test -f install/setup.bash || colcon build --symlink-install --packages-up-to $$ACTIVE_PACKAGES; source install/setup.bash; ros2 launch arm_bringup runtime_hybrid.launch.py enable_moveit:=false enable_rviz:=false camera_source:=topic'
 
 target-env-check:
 	python scripts/check_target_env.py --strict

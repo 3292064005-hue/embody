@@ -68,3 +68,51 @@ def test_camera_runtime_disables_compat_republish_by_default() -> None:
     node._republish_compat_frames_as_standard_image = False
     assert CameraRuntimeNode._should_publish_standard_image(node, source='capture') is True
     assert CameraRuntimeNode._should_publish_standard_image(node, source='compat') is False
+
+
+def test_hardware_dispatcher_accepts_set_joints_from_ros2_control_backbone_within_limits() -> None:
+    node = HardwareCommandDispatcherNode.__new__(HardwareCommandDispatcherNode)
+    node._safety_limits = load_safety_limits()
+    payload = {
+        'kind': 'SET_JOINTS',
+        'producer': 'ros2_control_backbone',
+        'command_plane': 'joint_stream',
+        'joint_names': ['joint_1', 'joint_2'],
+        'joint_positions': [0.2, -0.1],
+        'gripper_position': 0.02,
+    }
+    HardwareCommandDispatcherNode._validate_command_origin(payload)
+    HardwareCommandDispatcherNode._validate_command_against_safety(node, payload)
+
+
+def test_hardware_dispatcher_rejects_set_joints_from_non_backbone_producer() -> None:
+    payload = {
+        'kind': 'SET_JOINTS',
+        'producer': 'gateway_manual_control',
+        'command_plane': 'joint_stream',
+        'joint_names': ['joint_1'],
+        'joint_positions': [0.0],
+    }
+    try:
+        HardwareCommandDispatcherNode._validate_command_origin(payload)
+    except SafetyViolation as exc:
+        assert 'not authorized' in str(exc)
+    else:  # pragma: no cover - fail-closed assertion
+        raise AssertionError('hardware dispatcher must reject SET_JOINTS from non-backbone producers')
+
+
+def test_hardware_dispatcher_rejects_set_joints_outside_runtime_limit() -> None:
+    node = HardwareCommandDispatcherNode.__new__(HardwareCommandDispatcherNode)
+    node._safety_limits = load_safety_limits()
+    try:
+        HardwareCommandDispatcherNode._validate_command_against_safety(node, {
+            'kind': 'SET_JOINTS',
+            'joint_names': ['joint_1'],
+            'joint_positions': [9.0],
+            'producer': 'ros2_control_backbone',
+            'command_plane': 'joint_stream',
+        })
+    except SafetyViolation as exc:
+        assert 'joint joint_1 target' in str(exc)
+    else:  # pragma: no cover - fail-closed assertion
+        raise AssertionError('hardware dispatcher must reject out-of-range SET_JOINTS commands')

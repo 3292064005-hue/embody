@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 from typing import Any, Callable
 
-_FORWARDABLE_EXECUTION_MODES = frozenset({'authoritative_simulation', 'ros2_control_live'})
+_FORWARDABLE_EXECUTION_MODES = frozenset({'authoritative_simulation', 'ros2_control_candidate', 'ros2_control_live'})
 _REQUIRED_FORWARD_FIELDS = ('command_id', 'plan_id', 'task_id', 'stage', 'kind', 'timeout_sec')
 _REQUIRED_EXECUTION_TARGET_FIELDS = ('joint_names', 'points')
 
@@ -37,7 +37,7 @@ class CommandTransportAdapter:
     """
 
     def __init__(self, *, execution_mode: str) -> None:
-        self._execution_mode = str(execution_mode or 'protocol_bridge').strip() or 'protocol_bridge'
+        self._execution_mode = str(execution_mode or 'protocol_simulator').strip() or 'protocol_simulator'
         self._dispatch_count = 0
         self._last_command_id = ''
         self._last_message = ''
@@ -114,6 +114,97 @@ class CommandTransportAdapter:
         return None
 
 
+
+
+@dataclass(frozen=True)
+class ExecutionBackboneContract:
+    """Normalized execution-backbone contract selected for one runtime lane.
+
+    Attributes:
+        execution_mode: Declared runtime execution mode token.
+        transport_mode: Stable adapter/transport token exposed to diagnostics.
+        authoritative_transport: Whether commands leave controller shadow state.
+        sequential_dispatch: Whether the lane requires terminal feedback before
+            dispatching the next command.
+        rejection_message: Optional fail-closed reason when the declared lane
+            cannot honor its execution contract.
+    """
+
+    execution_mode: str
+    transport_mode: str
+    authoritative_transport: bool
+    sequential_dispatch: bool
+    rejection_message: str = ''
+
+
+def resolve_execution_backbone_contract(
+    *,
+    forward_hardware_commands: bool,
+    execution_mode: str,
+    ros2_control_available: bool,
+) -> ExecutionBackboneContract:
+    """Resolve the normalized execution-backbone contract for one lane.
+
+    Args:
+        forward_hardware_commands: Whether the active lane may emit hardware
+            commands beyond shadow state.
+        execution_mode: Runtime lane execution-mode token.
+        ros2_control_available: Whether a ros2_control submission callback is
+            available for validated-live candidate/live lanes.
+
+    Returns:
+        ExecutionBackboneContract: Stable contract consumed by adapter selection.
+
+    Boundary behavior:
+        Invalid authoritative declarations fail closed with a rejection contract
+        instead of silently downgrading to preview/shadow dispatch.
+    """
+    mode = str(execution_mode or 'protocol_simulator').strip() or 'protocol_simulator'
+    if not bool(forward_hardware_commands):
+        if mode in _FORWARDABLE_EXECUTION_MODES:
+            return ExecutionBackboneContract(
+                execution_mode=mode,
+                transport_mode='rejected',
+                authoritative_transport=False,
+                sequential_dispatch=False,
+                rejection_message=f'{mode} requires forward_hardware_commands=true',
+            )
+        return ExecutionBackboneContract(
+            execution_mode=mode,
+            transport_mode='shadow_only',
+            authoritative_transport=False,
+            sequential_dispatch=False,
+        )
+    if mode == 'authoritative_simulation':
+        return ExecutionBackboneContract(
+            execution_mode=mode,
+            transport_mode='ros_topic_dispatch',
+            authoritative_transport=True,
+            sequential_dispatch=False,
+        )
+    if mode in {'ros2_control_candidate', 'ros2_control_live'}:
+        if not ros2_control_available:
+            return ExecutionBackboneContract(
+                execution_mode=mode,
+                transport_mode='rejected',
+                authoritative_transport=False,
+                sequential_dispatch=False,
+                rejection_message=f'{mode} requires a ros2_control submission callback',
+            )
+        return ExecutionBackboneContract(
+            execution_mode=mode,
+            transport_mode='ros2_control_trajectory',
+            authoritative_transport=True,
+            sequential_dispatch=True,
+        )
+    return ExecutionBackboneContract(
+        execution_mode=mode,
+        transport_mode='rejected',
+        authoritative_transport=False,
+        sequential_dispatch=False,
+        rejection_message=f'unsupported forwarding execution mode: {mode}',
+    )
+
 class ShadowCommandTransportAdapter(CommandTransportAdapter):
     """Shadow-only adapter used by preview lanes.
 
@@ -168,6 +259,8 @@ class RosTopicCommandTransportAdapter(CommandTransportAdapter):
         envelope = dict(command)
         envelope['execution_mode'] = self.execution_mode
         envelope['transport_contract'] = 'authoritative_execution_v1'
+        envelope.setdefault('producer', 'motion_executor')
+        envelope.setdefault('command_plane', 'task_execution')
         message = 'command forwarded to hardware dispatcher topic'
         self._mark_dispatch(command_id, message=message)
         self._publish_json(json.dumps(envelope, ensure_ascii=False))
@@ -244,7 +337,7 @@ def build_transport_adapter(
         execution_mode: Runtime execution mode declared by launch/runtime config.
         publish_json: Callback used to publish serialized command payloads for
             dispatcher-backed transports.
-        submit_ros2_control_command: Optional callback used by ros2_control live
+        submit_ros2_control_command: Optional callback used by ros2_control candidate/live
             execution lanes to submit controller commands.
 
     Returns:
@@ -255,15 +348,15 @@ def build_transport_adapter(
         disabled or when the mode token is unsupported. Preview modes stay
         shadow-only by design.
     """
-    mode = str(execution_mode or 'protocol_bridge').strip() or 'protocol_bridge'
-    if not bool(forward_hardware_commands):
-        if mode in _FORWARDABLE_EXECUTION_MODES:
-            return RejectingCommandTransportAdapter(execution_mode=mode, rejection_message=f'{mode} requires forward_hardware_commands=true')
-        return ShadowCommandTransportAdapter(execution_mode=mode)
-    if mode == 'authoritative_simulation':
-        return RosTopicCommandTransportAdapter(execution_mode=mode, publish_json=publish_json)
-    if mode == 'ros2_control_live':
-        if submit_ros2_control_command is None:
-            return RejectingCommandTransportAdapter(execution_mode=mode, rejection_message='ros2_control_live requires a ros2_control submission callback')
-        return Ros2ControlCommandTransportAdapter(execution_mode=mode, submit_command=submit_ros2_control_command)
-    return RejectingCommandTransportAdapter(execution_mode=mode, rejection_message=f'unsupported forwarding execution mode: {mode}')
+    contract = resolve_execution_backbone_contract(
+        forward_hardware_commands=forward_hardware_commands,
+        execution_mode=execution_mode,
+        ros2_control_available=submit_ros2_control_command is not None,
+    )
+    if contract.transport_mode == 'shadow_only':
+        return ShadowCommandTransportAdapter(execution_mode=contract.execution_mode)
+    if contract.transport_mode == 'ros_topic_dispatch':
+        return RosTopicCommandTransportAdapter(execution_mode=contract.execution_mode, publish_json=publish_json)
+    if contract.transport_mode == 'ros2_control_trajectory' and submit_ros2_control_command is not None:
+        return Ros2ControlCommandTransportAdapter(execution_mode=contract.execution_mode, submit_command=submit_ros2_control_command)
+    return RejectingCommandTransportAdapter(execution_mode=contract.execution_mode, rejection_message=contract.rejection_message or 'execution backbone contract rejected')

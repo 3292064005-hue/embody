@@ -17,6 +17,13 @@ EXCLUDE_PREFIXES = {
     Path('backend/embodied_arm_ws/build'),
     Path('backend/embodied_arm_ws/install'),
     Path('backend/embodied_arm_ws/log'),
+    Path('backend/embodied_arm_ws/.active_overlay'),
+    Path('backend/embodied_arm_ws/src/arm_hmi'),
+    Path('backend/embodied_arm_ws/src/arm_task_manager'),
+    Path('backend/embodied_arm_ws/src/arm_motion_bridge'),
+    Path('backend/embodied_arm_ws/src/arm_vision'),
+    Path('backend/embodied_arm_ws/src/experimental'),
+    Path('third_party'),
 }
 EXCLUDE_PARTS = {'__pycache__', '.pytest_cache', '.vite'}
 EXCLUDE_FILES = {'.coverage', 'DELIVERY_REPORT.md'}

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
 from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Generic, TypeVar
@@ -9,7 +11,10 @@ import yaml
 
 from runtime_authority import (
     RUNTIME_AUTHORITY_PATH as CANONICAL_RUNTIME_AUTHORITY_PATH,
+    RUNTIME_LANE_ALIASES_PATH as CANONICAL_RUNTIME_LANE_ALIASES_PATH,
+    RUNTIME_PROFILES_PATH as CANONICAL_RUNTIME_PROFILES_PATH,
     VALIDATED_LIVE_EVIDENCE_PATH as CANONICAL_VALIDATED_LIVE_EVIDENCE_PATH,
+    effective_target_runtime_gate_path,
     evaluate_promotion_receipt,
     load_runtime_authority,
     load_validated_live_evidence,
@@ -20,9 +25,13 @@ BACKEND_CONFIG_DIR = GATEWAY_ROOT / 'backend' / 'embodied_arm_ws' / 'src' / 'arm
 PLACEMENT_PROFILE_PATH = BACKEND_CONFIG_DIR / 'placement_profiles.yaml'
 DEFAULT_CALIBRATION_PATH = BACKEND_CONFIG_DIR / 'default_calibration.yaml'
 RUNTIME_PROMOTION_RECEIPT_PATH = BACKEND_CONFIG_DIR / 'runtime_promotion_receipts.yaml'
+RUNTIME_PROFILE_PATH = CANONICAL_RUNTIME_PROFILES_PATH
+RUNTIME_LANE_ALIAS_PATH = CANONICAL_RUNTIME_LANE_ALIASES_PATH
 RUNTIME_AUTHORITY_PATH = CANONICAL_RUNTIME_AUTHORITY_PATH
 VALIDATED_LIVE_EVIDENCE_PATH = CANONICAL_VALIDATED_LIVE_EVIDENCE_PATH
+RELEASE_GATE_REPORT_PATH = effective_target_runtime_gate_path()
 SAFETY_LIMITS_PATH = BACKEND_CONFIG_DIR / 'safety_limits.yaml'
+FIRMWARE_SEMANTIC_PROFILES_PATH = BACKEND_CONFIG_DIR / 'firmware_semantic_profiles.yaml'
 
 _DEFAULT_PLACE_PROFILES: dict[str, dict[str, float]] = {
     'default': {'x': 0.20, 'y': 0.00, 'yaw': 0.0},
@@ -34,6 +43,16 @@ _DEFAULT_PLACE_PROFILES: dict[str, dict[str, float]] = {
 _DEFAULT_MANUAL_COMMAND_LIMITS: dict[str, float] = {
     'max_servo_cartesian_delta': 0.1,
     'max_jog_joint_step_deg': 10.0,
+}
+
+_DEFAULT_RELEASE_GATES: dict[str, Any] = {
+    'repoGate': 'not_executed',
+    'targetGate': 'not_executed',
+    'hilGate': 'not_executed',
+    'releaseChecklistGate': 'not_executed',
+    'releaseGate': 'not_executed',
+    'hasBlockingStep': False,
+    'blockingSteps': {},
 }
 
 T = TypeVar('T')
@@ -151,9 +170,51 @@ def _load_validated_live_evidence_payload() -> dict[str, Any]:
     return load_validated_live_evidence(VALIDATED_LIVE_EVIDENCE_PATH)
 
 
+def _parse_runtime_profile_catalog(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {'lanes': {}, 'aliases': {}}
+    lanes = {str(name): dict(item) for name, item in payload.items() if isinstance(item, dict)}
+    return {'lanes': lanes, 'aliases': {}}
+
+
+def _parse_runtime_lane_aliases(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+    resolved = payload.get('resolved', {}) if isinstance(payload.get('resolved'), dict) else {}
+    active = resolved.get('active', {}) if isinstance(resolved.get('active'), dict) else {}
+    return {str(name): str(value) for name, value in active.items() if str(name).strip() and str(value).strip()}
+
+
+def _parse_release_gate_details(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return dict(_DEFAULT_RELEASE_GATES)
+    result = dict(_DEFAULT_RELEASE_GATES)
+    for key in ('repoGate', 'targetGate', 'hilGate', 'releaseChecklistGate', 'releaseGate'):
+        value = str(payload.get(key, result[key]) or result[key]).strip() or result[key]
+        result[key] = value
+    result['hasBlockingStep'] = bool(payload.get('hasBlockingStep', False))
+    blocking = payload.get('blockingSteps', {}) if isinstance(payload.get('blockingSteps'), dict) else {}
+    result['blockingSteps'] = {str(name): str(status) for name, status in blocking.items() if str(name).strip()}
+    return result
+
+
+def _parse_firmware_semantic_profiles(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {'esp32': {'default_profile': 'preview_reserved', 'profiles': {}}}
+    esp32 = payload.get('esp32', {}) if isinstance(payload.get('esp32'), dict) else {}
+    profiles = esp32.get('profiles', {}) if isinstance(esp32.get('profiles'), dict) else {}
+    return {
+        'esp32': {
+            'default_profile': str(esp32.get('default_profile', 'preview_reserved') or 'preview_reserved'),
+            'profiles': {str(name): dict(item) for name, item in profiles.items() if isinstance(item, dict)},
+        }
+    }
+
+
 def _parse_runtime_promotion_receipt_details(payload: Any) -> dict[str, dict[str, Any]]:
     defaults = {
         'validated_sim': {
+            'promotion_mode': 'manual',
             'promoted': True,
             'receipt_id': 'validated-sim-baseline',
             'checked_by': 'repository-ci',
@@ -165,6 +226,7 @@ def _parse_runtime_promotion_receipt_details(payload: Any) -> dict[str, dict[str
             'missing_evidence': [],
         },
         'validated_live': {
+            'promotion_mode': 'automatic_when_ready',
             'promoted': False,
             'receipt_id': '',
             'checked_by': '',
@@ -184,17 +246,19 @@ def _parse_runtime_promotion_receipt_details(payload: Any) -> dict[str, dict[str
     for name, value in payload.items():
         if not isinstance(value, dict):
             continue
-        status = evaluate_promotion_receipt(value, authority=authority, evidence_manifest=evidence_manifest)
+        status = evaluate_promotion_receipt({**value, 'tier_name': str(name)}, authority=authority, evidence_manifest=evidence_manifest)
         result[str(name)] = {
-            'promoted': bool(value.get('promoted', False)),
-            'receipt_id': str(value.get('receipt_id', '') or ''),
-            'checked_by': str(value.get('checked_by', '') or ''),
-            'checked_at': str(value.get('checked_at', '') or ''),
+            'promotion_mode': status.mode,
+            'promoted': bool(status.promoted),
+            'receipt_id': str(value.get('receipt_id', '') or (f'{name}-auto-promotion' if status.mode == 'automatic_when_ready' and status.effective else '')),
+            'checked_by': str(value.get('checked_by', '') or ('runtime-authority-auto-promoter' if status.mode == 'automatic_when_ready' and status.effective else '')),
+            'checked_at': str(value.get('checked_at', '') or ('automatic_when_ready' if status.mode == 'automatic_when_ready' and status.effective else '')),
             'required_evidence': [str(item) for item in value.get('required_evidence', []) if str(item).strip()],
             'evidence': [str(item) for item in value.get('evidence', []) if str(item).strip()],
             'reason': str(value.get('reason', '') or ''),
             'effective': bool(status.effective),
             'missing_evidence': [str(item) for item in status.missing if str(item).strip()],
+            'auto_generated': bool(status.mode == 'automatic_when_ready' and status.effective),
         }
     return result
 
@@ -216,6 +280,10 @@ _RUNTIME_PROMOTION_RECEIPT_CACHE = _ConfigFileCache(
     lambda: _parse_runtime_promotion_receipt_details(None),
     _parse_runtime_promotion_receipt_details,
 )
+_RUNTIME_PROFILE_CACHE = _ConfigFileCache(lambda: RUNTIME_PROFILE_PATH, lambda: _parse_runtime_profile_catalog(None), _parse_runtime_profile_catalog)
+_RUNTIME_LANE_ALIAS_CACHE = _ConfigFileCache(lambda: RUNTIME_LANE_ALIAS_PATH, dict, _parse_runtime_lane_aliases)
+_RELEASE_GATE_CACHE = _ConfigFileCache(lambda: effective_target_runtime_gate_path(), lambda: dict(_DEFAULT_RELEASE_GATES), _parse_release_gate_details)
+_FIRMWARE_SEMANTIC_PROFILE_CACHE = _ConfigFileCache(lambda: FIRMWARE_SEMANTIC_PROFILES_PATH, lambda: _parse_firmware_semantic_profiles(None), _parse_firmware_semantic_profiles)
 _MANUAL_COMMAND_LIMITS_CACHE = _ConfigFileCache(lambda: SAFETY_LIMITS_PATH, lambda: dict(_DEFAULT_MANUAL_COMMAND_LIMITS), _parse_manual_command_limits)
 
 
@@ -228,6 +296,10 @@ def clear_runtime_config_caches() -> None:
     _PLACE_PROFILE_CACHE.clear()
     _DEFAULT_CALIBRATION_CACHE.clear()
     _RUNTIME_PROMOTION_RECEIPT_CACHE.clear()
+    _RUNTIME_PROFILE_CACHE.clear()
+    _RUNTIME_LANE_ALIAS_CACHE.clear()
+    _RELEASE_GATE_CACHE.clear()
+    _FIRMWARE_SEMANTIC_PROFILE_CACHE.clear()
     _MANUAL_COMMAND_LIMITS_CACHE.clear()
 
 
@@ -237,6 +309,10 @@ def current_runtime_config_version() -> str:
         _PLACE_PROFILE_CACHE.version(),
         _DEFAULT_CALIBRATION_CACHE.version(),
         _RUNTIME_PROMOTION_RECEIPT_CACHE.version(),
+        _RUNTIME_PROFILE_CACHE.version(),
+        _RUNTIME_LANE_ALIAS_CACHE.version(),
+        _RELEASE_GATE_CACHE.version(),
+        _FIRMWARE_SEMANTIC_PROFILE_CACHE.version(),
         _MANUAL_COMMAND_LIMITS_CACHE.version(),
     ]
     return '|'.join(parts)
@@ -283,6 +359,51 @@ def load_runtime_promotion_receipts() -> dict[str, bool]:
     """
     details = load_runtime_promotion_receipt_details()
     return {str(name): bool(item.get('effective', item.get('promoted', False))) for name, item in details.items() if isinstance(item, dict)}
+
+
+def load_runtime_profile_catalog() -> dict[str, Any]:
+    """Load the generated runtime profile catalog and alias map."""
+    catalog = _RUNTIME_PROFILE_CACHE.load()
+    catalog['aliases'] = _RUNTIME_LANE_ALIAS_CACHE.load()
+    return catalog
+
+
+def resolve_active_runtime_profile(requested_profile: str | None = None) -> dict[str, Any]:
+    """Resolve the active runtime profile from environment / alias configuration.
+
+    Args:
+        requested_profile: Optional runtime-profile token. Defaults to the
+            `EMBODIED_ARM_RUNTIME_PROFILE` environment variable.
+
+    Returns:
+        dict[str, Any]: Requested token, resolved lane name, and active lane payload.
+
+    Boundary behavior:
+        Unknown aliases fail closed by returning an empty active profile rather
+        than pretending that the default preview lane is authoritative.
+    """
+    catalog = load_runtime_profile_catalog()
+    lanes = catalog.get('lanes', {}) if isinstance(catalog.get('lanes'), dict) else {}
+    aliases = catalog.get('aliases', {}) if isinstance(catalog.get('aliases'), dict) else {}
+    requested = str(requested_profile or os.environ.get('EMBODIED_ARM_RUNTIME_PROFILE', '') or '').strip()
+    resolved = requested if requested in lanes else str(aliases.get(requested.lower(), '') or '')
+    active = dict(lanes.get(resolved, {}) or {})
+    return {
+        'requestedProfile': requested,
+        'activeRuntimeLane': resolved,
+        'activeProfile': active,
+        'resolvedFromAlias': bool(requested and requested not in lanes and resolved),
+    }
+
+
+def load_release_gate_details() -> dict[str, Any]:
+    """Load the machine-readable release-gate projection."""
+    return _RELEASE_GATE_CACHE.load()
+
+
+def load_firmware_semantic_profiles() -> dict[str, Any]:
+    """Load authoritative firmware semantic profiles."""
+    return _FIRMWARE_SEMANTIC_PROFILE_CACHE.load()
 
 
 def load_manual_command_limits() -> dict[str, float]:

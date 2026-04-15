@@ -78,20 +78,26 @@
 - safety: `arm_safety_supervisor`
 - task orchestration: `arm_task_orchestrator`
 
+## Runtime governance
+- official lanes: `sim_preview`, `sim_perception_preview`, `real_preview`, `hybrid_preview`, `hw_preview`, `full_demo_preview`, `sim_authoritative`, `full_demo_authoritative`
+- experimental lanes: `live_proto`, `live_control`, `real_validated_live`
+
 ## Runtime lanes
 - `authoritative_runtime` -> `sim_authoritative`
+- `experimental_live` -> `real_validated_live`
+- `experimental_live_control` -> `live_control`
+- `experimental_live_proto` -> `live_proto`
+- `experimental_real_candidate` -> `live_control`
+- `experimental_real_proto` -> `live_proto`
+- `experimental_real_validated_live` -> `real_validated_live`
+- `experimental_validated_live` -> `real_validated_live`
 - `full_demo` -> `full_demo_preview`
 - `full_demo_validated` -> `full_demo_authoritative`
 - `hw` -> `hw_preview`
 - `hybrid` -> `hybrid_preview`
-- `live` -> `real_validated_live`
 - `official_runtime` -> `sim_preview`
 - `real` -> `real_preview`
-- `real_authoritative` -> `real_candidate`
-- `real_authoritative_live` -> `real_validated_live`
-- `real_validated` -> `real_candidate`
 - `sim` -> `sim_preview`
 - `sim_perception_realistic` -> `sim_perception_preview`
 - `sim_validated` -> `sim_authoritative`
-- `validated_live` -> `real_validated_live`
 

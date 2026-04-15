@@ -185,7 +185,7 @@ def test_p0_authoritative_lanes_forward_hardware_commands_and_expose_execution_t
     assert manifest['sim_authoritative']['hardware_execution_mode'] == 'authoritative_simulation'
     assert manifest['sim_authoritative']['frame_ingress_mode'] == 'synthetic_frame_stream'
     assert manifest['sim_preview']['forward_hardware_commands'] is False
-    assert manifest['sim_preview']['hardware_execution_mode'] == 'protocol_bridge'
+    assert manifest['sim_preview']['hardware_execution_mode'] == 'protocol_simulator'
 
 
 def test_p0_dispatcher_feedback_contract_includes_command_correlation_fields():

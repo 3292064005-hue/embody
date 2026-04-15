@@ -6,6 +6,7 @@ from typing import Any
 
 from .models import (
     bootstrap_command_policies,
+    build_command_policies,
     build_command_summary,
     build_readiness_layers,
     coerce_system_state_aliases,
@@ -20,7 +21,16 @@ from .observability import StructuredEventSink
 from .readiness_snapshot import readiness_snapshot_is_stale
 from .runtime_bootstrap import default_readiness_snapshot
 from .generated.runtime_contract import PRODUCT_LINE_CAPABILITIES
-from .runtime_config import current_runtime_config_version, load_manual_command_limits, load_runtime_promotion_receipts
+from .runtime_config import (
+    current_runtime_config_version,
+    load_firmware_semantic_profiles,
+    load_manual_command_limits,
+    load_release_gate_details,
+    load_runtime_promotion_receipt_details,
+    load_runtime_promotion_receipts,
+    resolve_active_runtime_profile,
+)
+from .runtime_surface import summarize_runtime_surface
 from .state_slices import RecordStore, RequestContextStore, SnapshotStore, TargetProjectionStore, TaskProjectionStore, TaskRunLedgerStore
 
 
@@ -268,6 +278,7 @@ class GatewayState:
         *,
         correlation_id: str | None = None,
         task_run_id: str | None = None,
+        episode_id: str | None = None,
     ) -> tuple[str, str, str]:
         """Attach request/correlation identifiers to one task id.
 
@@ -284,16 +295,24 @@ class GatewayState:
             Does not raise. The identifiers are stored in-memory only.
         """
         with self._lock:
-            return self._request_contexts.attach(
+            request_id_value, correlation_value, task_run_value, _episode_value = self._request_contexts.attach(
                 task_id,
                 request_id,
                 correlation_id=correlation_id,
                 task_run_id=task_run_id,
+                episode_id=episode_id,
             )
+            return request_id_value, correlation_value, task_run_value
 
     def request_context(self, task_id: str) -> tuple[str | None, str | None, str | None]:
         with self._lock:
-            return self._request_contexts.get(task_id)
+            request_id_value, correlation_value, task_run_value, _episode_value = self._request_contexts.get(task_id)
+            return request_id_value, correlation_value, task_run_value
+
+
+    def request_context_payload(self, task_id: str) -> dict[str, str] | None:
+        with self._lock:
+            return self._request_contexts.get_payload(task_id)
 
     def start_task(
         self,
@@ -304,9 +323,11 @@ class GatewayState:
         *,
         correlation_id: str | None = None,
         task_run_id: str | None = None,
+        episode_id: str | None = None,
         template_id: str | None = None,
         place_profile: str | None = None,
         runtime_tier: str | None = None,
+        graph_key: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             task = self._task_store.start(
@@ -317,9 +338,11 @@ class GatewayState:
                 system_state=self._system_store.mutate(),
                 correlation_id=correlation_id,
                 task_run_id=task_run_id,
+                episode_id=episode_id,
                 template_id=template_id,
                 place_profile=place_profile,
                 runtime_tier=runtime_tier,
+                graph_key=graph_key,
             )
             self._refresh_readiness_locked()
             self._refresh_diagnostics_locked()
@@ -406,13 +429,15 @@ class GatewayState:
         }
         readiness['runtimeConfigVersion'] = current_runtime_config_version()
         system = self._system_store.mutate()
-        snapshot_mode_locked = self._backend_readiness_authoritative or readiness.get('source') in {'gateway_dev_simulation', 'gateway_bootstrap'} or readiness.get('mode') in {'bootstrap', 'simulated_local_only'}
+        snapshot_mode_locked = self._backend_readiness_authoritative or readiness.get('source') in {'gateway_bootstrap'} or readiness.get('mode') in {'bootstrap'}
         if not snapshot_mode_locked:
             readiness['mode'] = normalize_readiness_mode(system) if system else readiness.get('mode', 'bootstrap')
         readiness['controllerMode'] = system.get('controllerMode', system.get('operatorMode', readiness.get('controllerMode', 'idle')))
         readiness['runtimePhase'] = system.get('runtimePhase', system.get('mode', readiness.get('runtimePhase', 'boot')))
         readiness['taskStage'] = system.get('taskStage', system.get('currentStage', readiness.get('taskStage', 'created')))
         runtime_healthy, mode_ready = build_readiness_layers(str(readiness.get('mode', 'bootstrap')), dict(readiness.get('checks') or {}))
+        if not self._backend_readiness_authoritative:
+            readiness['commandPolicies'] = build_command_policies(str(readiness.get('mode', 'bootstrap')), dict(readiness.get('checks') or {}))
         readiness['runtimeHealthy'] = bool(readiness.get('runtimeHealthy', runtime_healthy)) if self._backend_readiness_authoritative else runtime_healthy
         readiness['modeReady'] = bool(readiness.get('modeReady', mode_ready)) if self._backend_readiness_authoritative else mode_ready
         readiness['allReady'] = readiness['modeReady']
@@ -428,9 +453,24 @@ class GatewayState:
                 missing_details.append(stale_reason)
             readiness['missingDetails'] = missing_details
         readiness['commandSummary'] = build_command_summary(readiness.get('commandPolicies', {}))
-        tier, product_line = _infer_runtime_tier(readiness, self._hardware_store.mutate())
+        hardware = self._hardware_store.mutate()
+        tier, product_line = _infer_runtime_tier(readiness, hardware)
         readiness['runtimeTier'] = tier
         readiness['productLine'] = product_line
+        runtime_surface = summarize_runtime_surface(
+            runtime_tier=tier,
+            readiness=readiness,
+            hardware=hardware,
+            runtime_profile_details=resolve_active_runtime_profile(),
+            firmware_profiles=load_firmware_semantic_profiles(),
+        )
+        readiness['runtimeDeliveryTrack'] = runtime_surface['runtimeDeliveryTrack']
+        readiness['executionBackbone'] = runtime_surface['executionBackbone']
+        readiness['executionBackboneSummary'] = runtime_surface
+        readiness['promotionReceipts'] = load_runtime_promotion_receipt_details()
+        readiness['releaseGates'] = load_release_gate_details()
+        readiness['firmwareSemanticProfile'] = runtime_surface['firmwareProfile']
+        readiness['firmwareSemanticMessage'] = runtime_surface['firmwareMessage']
 
     def get_readiness(self) -> dict[str, Any]:
         with self._lock:

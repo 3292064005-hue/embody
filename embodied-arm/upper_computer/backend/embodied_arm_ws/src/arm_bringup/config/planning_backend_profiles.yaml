@@ -40,12 +40,43 @@ validated_sim_default:
   metadata:
     executionModel: validated_simulation_runtime
 validated_live_bridge:
-  plugin: http_bridge
-  declared: false
+  plugin: runtime_service_bridge
+  declared: true
   capability_mode: validated_live
-  planner_plugin: moveit_http_bridge
+  planner_plugin: moveit_runtime_bridge
   scene_source: runtime_scene_service
-  url: http://127.0.0.1:8088/plan
-  timeout_sec: 1.5
+  workspace_bounds:
+    min_x: -0.35
+    max_x: 0.35
+    min_y: -0.35
+    max_y: 0.35
+    min_z: 0.02
+    max_z: 0.45
+    min_yaw: -3.14159
+    max_yaw: 3.14159
+    approach_offset_z: 0.08
+  named_poses:
+    home:
+      joint_1: 0.0
+      joint_2: 0.0
+      joint_3: 0.0
+      joint_4: 0.0
+      joint_5: 0.0
+      joint_6: 0.0
+    stow:
+      joint_1: 0.0
+      joint_2: -0.35
+      joint_3: 0.7
+      joint_4: 0.0
+      joint_5: 0.55
+      joint_6: 0.0
+    inspect:
+      joint_1: 0.0
+      joint_2: -0.1
+      joint_3: 0.35
+      joint_4: 0.0
+      joint_5: 0.2
+      joint_6: 0.0
   metadata:
-    executionModel: validated_live_bridge
+    executionModel: validated_live_runtime_service
+    planningBoundary: runtime_service_bridge

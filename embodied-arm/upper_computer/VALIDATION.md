@@ -70,6 +70,10 @@ make ros-target-validate-docker
 
 Target validation now records `negative_path_subset` separately from `ros_smoke`, and HIL remains a distinct blocking gate.
 
+- Runtime contract generation now emits both `docs/generated/runtime_contract_manifest.json` and `docs/generated/runtime_contract_schema.json`; both are part of contract drift validation.
+- Public task templates are expected to expose `graphKey + taskGraph`; contract validation treats missing task-graph descriptors as a release-blocking drift.
+- Release packaging validation must confirm that experimental / archived packages (`arm_hmi`, `arm_task_manager`, `arm_motion_bridge`, `arm_vision`) are excluded from the curated source zip.
+
 ## Active-profile quarantine discipline
 
 - `backend/embodied_arm_ws/active_profile_quarantine.json` 是 active lane 忽略测试的唯一台账。

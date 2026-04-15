@@ -23,6 +23,7 @@ class RuntimeEventEnvelope:
     request_id: str | None = None
     correlation_id: str | None = None
     task_run_id: str | None = None
+    episode_id: str | None = None
     stage: str | None = None
     error_code: str | None = None
     operator_actionable: bool | None = None
@@ -36,6 +37,7 @@ class RuntimeEventEnvelope:
             'requestId': self.request_id,
             'correlationId': self.correlation_id,
             'taskRunId': self.task_run_id,
+            'episodeId': self.episode_id or self.task_run_id,
             'stage': self.stage,
             'errorCode': self.error_code,
             'operatorActionable': self.operator_actionable,
@@ -50,19 +52,21 @@ def encode_event_message(
     request_id: str | None = None,
     correlation_id: str | None = None,
     task_run_id: str | None = None,
+    episode_id: str | None = None,
     stage: str | None = None,
     error_code: str | None = None,
     operator_actionable: bool | None = None,
     payload: dict[str, Any] | None = None,
 ) -> str:
     """Serialize structured runtime event metadata into a string field."""
-    if not any((request_id, correlation_id, task_run_id, stage, error_code, operator_actionable is not None, payload)):
+    if not any((request_id, correlation_id, task_run_id, episode_id, stage, error_code, operator_actionable is not None, payload)):
         return str(message)
     envelope = RuntimeEventEnvelope(
         message=str(message),
         request_id=request_id,
         correlation_id=correlation_id,
         task_run_id=task_run_id,
+        episode_id=episode_id,
         stage=stage,
         error_code=error_code,
         operator_actionable=operator_actionable,

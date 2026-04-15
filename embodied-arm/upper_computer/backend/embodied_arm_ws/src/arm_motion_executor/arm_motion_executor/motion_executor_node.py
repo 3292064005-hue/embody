@@ -87,7 +87,7 @@ class MotionExecutorNode(ManagedLifecycleNode):
         super().__init__('motion_executor_node')
         self.declare_parameter('publish_period_sec', 1.0)
         self.declare_parameter('forward_hardware_commands', False)
-        self.declare_parameter('hardware_execution_mode', 'protocol_bridge')
+        self.declare_parameter('hardware_execution_mode', 'protocol_simulator')
         self.declare_parameter('ros2_control_arm_action_name', '/arm_joint_trajectory_controller/follow_joint_trajectory')
         self.declare_parameter('ros2_control_gripper_action_name', '/gripper_command_controller/follow_joint_trajectory')
         self.declare_parameter('ros2_control_open_gripper_position', 0.04)

@@ -1,5 +1,6 @@
 # Generated from runtime_authority.yaml. Do not edit manually.
 validated_sim:
+  promotion_mode: manual
   promoted: true
   receipt_id: validated-sim-baseline
   checked_by: repository-ci
@@ -17,7 +18,9 @@ validated_sim:
   reason: ''
   effective: true
   missing_evidence: []
+  auto_generated: false
 validated_live:
+  promotion_mode: automatic_when_ready
   promoted: false
   receipt_id: ''
   checked_by: ''
@@ -35,3 +38,4 @@ validated_live:
   - target_runtime_gate_passed
   - hil_gate_passed
   - release_checklist_signed
+  auto_generated: false

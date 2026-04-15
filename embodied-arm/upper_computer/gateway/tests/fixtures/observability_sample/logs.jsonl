@@ -1,0 +1,2 @@
+{"event":"voice.event.intent","level":"info","payload":{"telemetryOnly":true,"actionExecutionBound":false}}
+{"event":"system.start","level":"info"}

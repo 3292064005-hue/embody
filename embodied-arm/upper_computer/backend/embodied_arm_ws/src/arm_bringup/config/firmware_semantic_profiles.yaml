@@ -1,0 +1,38 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+schema_version: 4
+esp32:
+  default_profile: preview_reserved
+  profiles:
+    preview_reserved:
+      source_lane: sim_preview
+      camera_available: false
+      frame_ingress_live: false
+      stream_semantic: reserved
+      frame_ingress_mode: reserved_endpoint
+      stream_delivery_model: control_plane_only
+      stream_control_plane: esp32_metadata_bridge
+      stream_message: preview reserved profile keeps /stream in control-plane-only
+        mode until an authoritative lane declares live ingress
+      hostname: esp32.local
+    validated_sim_synthetic:
+      source_lane: sim_authoritative
+      camera_available: true
+      frame_ingress_live: true
+      stream_semantic: synthetic_frame
+      frame_ingress_mode: synthetic_frame_stream
+      stream_delivery_model: synthetic_preview
+      stream_control_plane: esp32_metadata_bridge
+      stream_message: validated_sim profile publishes synthetic frame ingress metadata
+        for authoritative simulation
+      hostname: esp32.local
+    validated_live_external_bridge:
+      source_lane: real_validated_live
+      camera_available: true
+      frame_ingress_live: true
+      stream_semantic: live_frame_summary
+      frame_ingress_mode: live_camera_stream
+      stream_delivery_model: external_bridge_required
+      stream_control_plane: esp32_metadata_bridge
+      stream_message: validated_live profile expects an external camera bridge to
+        supply authoritative live ingress while ESP32 publishes board metadata
+      hostname: esp32.local

@@ -1,5 +1,6 @@
 <template>
   <section class="maintenance-page">
+    <el-alert v-if="previewNotice" type="warning" :closable="false" show-icon :title="previewNotice" />
     <div class="grid-2">
       <div class="panel action-panel">
         <div class="panel-title">维护操作</div>
@@ -21,6 +22,7 @@
           <el-button :disabled="!safetyStore.canRecover.allowed" :loading="systemStore.pendingCommand" @click="handleRecover">恢复到空闲</el-button>
           <el-button :disabled="!safetyStore.canControlGripper.allowed" :loading="robotStore.pendingCommand" @click="handleGripper(true)">打开夹爪</el-button>
           <el-button :disabled="!safetyStore.canControlGripper.allowed" :loading="robotStore.pendingCommand" @click="handleGripper(false)">闭合夹爪</el-button>
+          <el-button :disabled="appStore.operatorRole !== 'maintainer'" @click="handleClearTargets">清空视觉目标缓存</el-button>
         </div>
 
         <div class="joint-card panel">
@@ -81,6 +83,7 @@ import { CONTROLLER_MODE_OPTIONS } from '@/constants/system';
 import { resolveControllerMode, type ControllerMode } from '@/models/system';
 import { useSystemStore } from '@/stores/system';
 import { useRobotStore } from '@/stores/robot';
+import { useTaskStore } from '@/stores/task';
 import { useSafetyStore } from '@/stores/safety';
 import { useReadinessStore } from '@/stores/readiness';
 import { useAuditStore } from '@/stores/audit';
@@ -88,9 +91,11 @@ import { useAppStore } from '@/stores/app';
 import { useDangerConfirm } from '@/composables/useDangerConfirm';
 import { useCommandBus } from '@/services/commands/commandBus';
 import { MANUAL_COMMAND_LIMITS } from '@/generated/runtimeContract';
+import { clearVisionTargets } from '@/services/api/vision';
 
 const systemStore = useSystemStore();
 const robotStore = useRobotStore();
+const taskStore = useTaskStore();
 const safetyStore = useSafetyStore();
 const readinessStore = useReadinessStore();
 const auditStore = useAuditStore();
@@ -106,6 +111,12 @@ const controllerMode = computed<ControllerMode>(() => systemStore.current ? reso
 const canServo = computed(() => safetyStore.canServoCartesian.allowed);
 const effectiveManualCommandLimits = computed(() => readinessStore.manualCommandLimits || MANUAL_COMMAND_LIMITS);
 const maxServoStepMm = computed(() => Math.round(effectiveManualCommandLimits.value.maxServoCartesianDeltaMeters * 1000));
+const previewNotice = computed(() => {
+  if (robotStore.localPreviewOnly) return robotStore.localPreviewMessage || '当前维护命令仅做本地 preview 投影，未下发到权威运行时。';
+  if (systemStore.localPreviewOnly) return systemStore.localPreviewMessage || '当前系统命令仅做本地 preview 投影，未下发到权威运行时。';
+  if (taskStore.localPreviewOnly) return taskStore.localPreviewMessage || '当前任务命令仅做本地 preview 投影，未下发到权威运行时。';
+  return '';
+});
 
 watch(effectiveManualCommandLimits, (limits) => {
   if (stepDeg.value > limits.maxJogJointStepDeg) stepDeg.value = limits.maxJogJointStepDeg;
@@ -120,6 +131,10 @@ function servoDeltaMeters(stepMm: number): number {
   return Math.min(Math.max(meters, -limit), limit);
 }
 
+function showCommandResult(successMessage: string, previewMessage: string) {
+  ElMessage.success(robotStore.localPreviewOnly ? previewMessage : successMessage);
+}
+
 const jointOptions = Array.from({ length: 6 }).map((_, index) => ({
   label: `J${index + 1}`,
   value: index
@@ -129,7 +144,7 @@ async function handleHome() {
   try {
     await confirmDanger('确认执行回零？');
     await commandBus.home();
-    ElMessage.success('已发送回零命令');
+    ElMessage.success(systemStore.localPreviewOnly ? '回零命令仅做本地 preview 投影' : '已发送回零命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -139,7 +154,7 @@ async function handleResetFault() {
   try {
     await confirmDanger('确认执行故障复位？');
     await commandBus.resetFault();
-    ElMessage.success('已发送故障复位命令');
+    ElMessage.success(systemStore.localPreviewOnly ? '故障复位命令仅做本地 preview 投影' : '已发送故障复位命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -149,7 +164,7 @@ async function handleRecover() {
   try {
     await confirmDanger('确认执行运行时恢复并回到空闲态？');
     await commandBus.recoverRuntime();
-    ElMessage.success('已发送运行时恢复命令');
+    ElMessage.success(systemStore.localPreviewOnly ? '运行时恢复命令仅做本地 preview 投影' : '已发送运行时恢复命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -159,7 +174,7 @@ async function handleControllerModeChange(value: ControllerMode) {
   try {
     await confirmDanger(`确认切换控制器模式到 ${value}？`);
     await commandBus.setControllerMode(value);
-    ElMessage.success(`已发送模式切换命令：${value}`);
+    showCommandResult(`已发送模式切换命令：${value}`, `模式切换仅做本地 preview 投影：${value}`);
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -169,7 +184,18 @@ async function handleGripper(open: boolean) {
   try {
     await confirmDanger(open ? '确认打开夹爪？' : '确认闭合夹爪？');
     await commandBus.setGripper(open);
-    ElMessage.success(open ? '已发送打开夹爪命令' : '已发送闭合夹爪命令');
+    showCommandResult(open ? '已发送打开夹爪命令' : '已发送闭合夹爪命令', open ? '打开夹爪仅做本地 preview 投影' : '闭合夹爪仅做本地 preview 投影');
+  } catch (error) {
+    if (error instanceof Error) ElMessage.warning(error.message);
+  }
+}
+
+
+async function handleClearTargets() {
+  try {
+    await confirmDanger('确认清空当前视觉目标缓存？');
+    await clearVisionTargets();
+    ElMessage.success('已清空视觉目标缓存');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -179,7 +205,7 @@ async function handleJog(direction: -1 | 1) {
   try {
     await confirmDanger(`确认对 J${jointIndex.value + 1} 执行${direction > 0 ? '正向' : '负向'}点动 ${stepDeg.value}°？`);
     await commandBus.jogJoint(jointIndex.value, direction, stepDeg.value);
-    ElMessage.success(`已发送 J${jointIndex.value + 1} ${direction > 0 ? '正向' : '负向'}点动命令`);
+    showCommandResult(`已发送 J${jointIndex.value + 1} ${direction > 0 ? '正向' : '负向'}点动命令`, `J${jointIndex.value + 1} 点动仅做本地 preview 投影`);
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -190,7 +216,7 @@ async function handleServo(axis: string, delta: number) {
     const deltaMm = delta * 1000;
     await confirmDanger(`确认执行 ${axis.toUpperCase()} 轴 ${deltaMm > 0 ? '+' : ''}${deltaMm} mm 微调？`);
     await commandBus.servoCartesian(axis, delta);
-    ElMessage.success(`已发送 ${axis.toUpperCase()} 轴微调命令`);
+    showCommandResult(`已发送 ${axis.toUpperCase()} 轴微调命令`, `${axis.toUpperCase()} 轴微调仅做本地 preview 投影`);
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }

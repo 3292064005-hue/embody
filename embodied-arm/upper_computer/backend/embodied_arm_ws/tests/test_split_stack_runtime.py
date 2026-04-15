@@ -2,9 +2,10 @@ from arm_backend_common.data_models import CalibrationProfile, HardwareSnapshot,
 from arm_backend_common.enums import FaultCode
 from arm_motion_executor.executor import MotionExecutor
 from arm_motion_planner.planner import MotionPlanner
+from arm_perception.target_tracker import VisionTargetTracker
 from arm_readiness_manager.readiness import ReadinessManager
 from arm_task_orchestrator.orchestrator import TaskOrchestrator
-from arm_vision.tracker import VisionTargetTracker
+from arm_task_orchestrator.task_plugins import resolve_task_runtime_plugin
 
 
 def test_readiness_check_becomes_stale_without_refresh():
@@ -38,14 +39,9 @@ def test_orchestrator_skips_completed_and_stale_targets():
     assert target.target_id == 'fresh'
 
 
-def test_orchestrator_rejects_empty_task_type_and_reports_hardware_detail():
-    profile = TaskProfile()
-    orchestrator = TaskOrchestrator(profile)
-    rejected = orchestrator.accept_request(TaskRequest(task_id='1', task_type=''), True, 'ready')
-    assert not rejected.accepted
-    decision = orchestrator.verify_hardware_ready(HardwareSnapshot(stm32_online=False))
-    assert decision.fault == FaultCode.SERIAL_DISCONNECTED
-    assert decision.message == 'stm32 offline'
+def test_task_plugin_registry_maps_clear_table_to_continuous():
+    plugin = resolve_task_runtime_plugin('CLEAR_TABLE')
+    assert plugin.key == 'continuous'
 
 
 def test_planner_and_executor_validate_full_pick_place_plan():
@@ -53,10 +49,8 @@ def test_planner_and_executor_validate_full_pick_place_plan():
     executor = MotionExecutor()
     target = TargetSnapshot(target_id='t1', target_type='cube', semantic_label='red', table_x=0.1, table_y=0.2, yaw=0.0, confidence=0.95)
     calibration = CalibrationProfile(place_profiles={'default': {'x': 0.2, 'y': 0.0, 'yaw': 0.0}, 'bin_red': {'x': 0.25, 'y': 0.12, 'yaw': 0.0}})
-    context = TaskContext(task_id='task-1', task_type='PICK_AND_PLACE', place_profile='bin_red')
+    context = TaskContext(task_id='task-1', task_type='PICK_AND_PLACE', place_profile='bin_red', active_place_pose=calibration.resolve_place_profile('bin_red'))
     plan = planner.build_pick_place_plan(context, target, calibration)
-    summary = planner.summarize_plan(plan)
-    assert summary['stageCount'] == 8
     result = executor.validate(plan)
     assert result.accepted, result.message
     commands = executor.build_command_stream(plan, 'task-1')

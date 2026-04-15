@@ -8,13 +8,18 @@ try:
 except Exception:  # pragma: no cover
     yaml = None
 
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
-from launch_ros.actions import LifecycleNode, Node
-from launch_ros.substitutions import FindPackageShare
+try:
+    from launch import LaunchDescription
+    from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+    from launch.conditions import IfCondition
+    from launch.launch_description_sources import PythonLaunchDescriptionSource
+    from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+    from launch_ros.actions import LifecycleNode, Node
+    from launch_ros.substitutions import FindPackageShare
+except Exception:  # pragma: no cover - import-lite test environments
+    LaunchDescription = object
+    DeclareLaunchArgument = IncludeLaunchDescription = LifecycleNode = Node = object
+    IfCondition = PythonLaunchDescriptionSource = LaunchConfiguration = PathJoinSubstitution = PythonExpression = FindPackageShare = object
 
 RUNTIME_CORE_PACKAGES = (
     'arm_profiles',
@@ -36,25 +41,140 @@ RUNTIME_CORE_PACKAGES = (
     'arm_logger',
 )
 RUNTIME_SUPERVISION_PACKAGES = ('arm_lifecycle_manager',)
+RUNTIME_SUPPORT_PACKAGES = (
+    'arm_backend_common',
+    'arm_common',
+    'arm_interfaces',
+    'arm_description',
+    'arm_moveit_config',
+    'arm_control_bringup',
+    'arm_hardware_interface',
+    'arm_mock_tools',
+    'arm_sim',
+    'arm_tools',
+    'arm_tests',
+)
 COMPATIBILITY_PACKAGES = ('arm_task_manager', 'arm_motion_bridge', 'arm_vision')
 EXPERIMENTAL_PACKAGES = ('arm_hmi',)
-RUNTIME_LANE_ALIASES = {
-    'official_runtime': 'sim_preview',
-    'sim': 'sim_preview',
-    'authoritative_runtime': 'sim_authoritative',
-    'sim_validated': 'sim_authoritative',
-    'sim_perception_realistic': 'sim_perception_preview',
-    'real': 'real_preview',
-    'hybrid': 'hybrid_preview',
-    'hw': 'hw_preview',
-    'full_demo': 'full_demo_preview',
-    'full_demo_validated': 'full_demo_authoritative',
-    'real_authoritative': 'real_candidate',
-    'real_authoritative_live': 'real_validated_live',
-    'real_validated': 'real_candidate',
-    'validated_live': 'real_validated_live',
-    'live': 'real_validated_live',
-}
+RUNTIME_LANE_ALIAS_PATH = Path(__file__).resolve().parents[1] / 'config' / 'runtime_lane_aliases.yaml'
+
+
+def _effective_runtime_lane_alias_path() -> Path:
+    env_path = os.environ.get('EMBODIED_ARM_RUNTIME_LANE_ALIASES_FILE', '').strip()
+    return Path(env_path).expanduser() if env_path else RUNTIME_LANE_ALIAS_PATH
+
+
+def _load_runtime_lane_alias_maps() -> dict[str, dict[str, str]]:
+    path = _effective_runtime_lane_alias_path()
+    if yaml is None or not path.exists():
+        raise _runtime_metadata_required('runtime lane alias', path)
+    try:
+        payload = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    except Exception as exc:
+        raise RuntimeError(f'failed to parse runtime lane aliases: {path}: {exc}') from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f'runtime lane aliases must be a mapping: {path}')
+
+    def _flatten(group_name: str) -> dict[str, str]:
+        group = payload.get(group_name, {}) if isinstance(payload.get(group_name), dict) else {}
+        flattened: dict[str, str] = {}
+        for alias, item in group.items():
+            if not isinstance(item, dict):
+                raise RuntimeError(f'runtime lane alias entry must be a mapping: {group_name}.{alias}')
+            alias_name = str(alias).strip().lower()
+            lane_name = str(item.get('lane', '') or '').strip()
+            if alias_name and lane_name:
+                flattened[alias_name] = lane_name
+        return flattened
+
+    compatibility = _flatten('compatibility')
+    experimental = _flatten('experimental')
+    retired = _flatten('retired')
+    active = dict(compatibility)
+    active.update(experimental)
+    return {
+        'compatibility': compatibility,
+        'experimental': experimental,
+        'retired': retired,
+        'active': active,
+    }
+
+
+_RUNTIME_LANE_ALIAS_MAPS = _load_runtime_lane_alias_maps()
+COMPATIBILITY_RUNTIME_LANE_ALIASES = dict(_RUNTIME_LANE_ALIAS_MAPS['compatibility'])
+LEGACY_EXPERIMENTAL_RUNTIME_LANE_ALIASES = dict(_RUNTIME_LANE_ALIAS_MAPS['retired'])
+EXPERIMENTAL_RUNTIME_LANE_ALIASES = dict(_RUNTIME_LANE_ALIAS_MAPS['experimental'])
+RUNTIME_LANE_ALIASES = dict(_RUNTIME_LANE_ALIAS_MAPS['active'])
+
+
+def _effective_runtime_authority_path() -> Path:
+    env_path = os.environ.get('EMBODIED_ARM_RUNTIME_AUTHORITY_FILE', '').strip()
+    return Path(env_path).expanduser() if env_path else Path(__file__).resolve().parents[1] / 'config' / 'runtime_authority.yaml'
+
+
+def _runtime_metadata_required(kind: str, path: Path) -> RuntimeError:
+    """Build a consistent fail-fast error for missing runtime metadata artifacts."""
+    return RuntimeError(
+        f'{kind} metadata is required for runtime-lane resolution; regenerate or restore the canonical artifact: {path}'
+    )
+
+
+def _load_runtime_governance() -> dict[str, tuple[str, ...]]:
+    """Load authoritative runtime-lane governance from runtime_authority.yaml.
+
+    The authority file is the only editable source for official vs experimental
+    lane classification. Launch-time helpers consume that classification so the
+    repository does not maintain a second hand-written lane list in Python code.
+
+    Raises:
+        RuntimeError: The authority artifact is missing, YAML support is
+            unavailable, parsing fails, or the governance mapping is incomplete.
+    """
+    authority_path = _effective_runtime_authority_path()
+    if yaml is None or not authority_path.exists():
+        raise _runtime_metadata_required('runtime authority', authority_path)
+    try:
+        payload = yaml.safe_load(authority_path.read_text(encoding='utf-8')) or {}
+    except Exception as exc:
+        raise RuntimeError(f'failed to parse runtime authority: {authority_path}: {exc}') from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f'runtime authority must be a mapping: {authority_path}')
+    governance = payload.get('runtime_governance', {}) if isinstance(payload.get('runtime_governance'), dict) else {}
+    official = tuple(str(item).strip() for item in governance.get('official_runtime_lanes', []) if str(item).strip())
+    experimental = tuple(str(item).strip() for item in governance.get('experimental_runtime_lanes', []) if str(item).strip())
+    if not official and not experimental:
+        raise RuntimeError(f'runtime authority governance missing runtime lane classifications: {authority_path}')
+    return {
+        'official_runtime_lanes': official,
+        'experimental_runtime_lanes': experimental,
+    }
+
+
+def official_runtime_lanes() -> tuple[str, ...]:
+    """Return authoritative official-active runtime lanes."""
+    return _load_runtime_governance()['official_runtime_lanes']
+
+
+def experimental_runtime_lanes() -> tuple[str, ...]:
+    """Return authoritative experimental runtime lanes."""
+    return _load_runtime_governance()['experimental_runtime_lanes']
+
+
+def _legacy_experimental_aliases_enabled() -> bool:
+    return os.environ.get('EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES', 'false').strip().lower() == 'true'
+
+
+def _resolve_runtime_lane_alias(normalized: str) -> str:
+    if normalized in LEGACY_EXPERIMENTAL_RUNTIME_LANE_ALIASES and not _legacy_experimental_aliases_enabled():
+        target = LEGACY_EXPERIMENTAL_RUNTIME_LANE_ALIASES[normalized]
+        explicit = next((alias for alias, lane in EXPERIMENTAL_RUNTIME_LANE_ALIASES.items() if lane == target), f'experimental_{target}')
+        raise RuntimeError(
+            f'legacy live alias {normalized!r} is retired from the default runtime surface; '
+            f'use {explicit!r} or the canonical lane {target!r}, or set '
+            'EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES=true for temporary migration.'
+        )
+    return RUNTIME_LANE_ALIASES.get(normalized, LEGACY_EXPERIMENTAL_RUNTIME_LANE_ALIASES.get(normalized, normalized))
+
 
 
 @dataclass(frozen=True)
@@ -85,8 +205,8 @@ class RuntimeLaneSpec:
     esp32_frame_ingress_live: bool = False
     frame_ingress_mode: str = 'reserved_endpoint'
     forward_hardware_commands: bool = False
-    hardware_execution_mode: str = 'protocol_bridge'
-    execution_backbone: str = 'protocol_bridge'
+    hardware_execution_mode: str = 'protocol_simulator'
+    execution_backbone: str = 'protocol_simulator'
     execution_backbone_declared: bool = True
     stm32_authoritative_simulation: bool = False
     enable_ros2_control: bool = False
@@ -94,22 +214,13 @@ class RuntimeLaneSpec:
     public_runtime_tier: str = ''
     task_workbench_visible: bool | None = None
     task_execution_interactive: bool | None = None
+    validated_live_backbone_owner: str = ''
+    validated_live_controller_manager_package: str = ''
+    validated_live_hardware_interface_package: str = ''
 
 
-# Fail-safe fallback used only when runtime_profiles.yaml is unavailable or invalid.
+# Baked-in fallback mirrors the authority-governed official/experimental lane split.
 # The canonical runtime authority lives in config/runtime_authority.yaml; runtime_profiles.yaml is the generated launch-time projection.
-RUNTIME_LANE_SPECS = {
-    'sim_preview': RuntimeLaneSpec(name='sim_preview', simulate_hardware=True, camera_source='mock', esp32_mode='sim'),
-    'sim_perception_preview': RuntimeLaneSpec(name='sim_perception_preview', simulate_hardware=True, camera_source='mock', esp32_mode='sim', mock_camera_profile='realistic_empty'),
-    'real_preview': RuntimeLaneSpec(name='real_preview', simulate_hardware=False, camera_source='topic', esp32_mode='wifi', enable_esp32_gateway=True),
-    'hybrid_preview': RuntimeLaneSpec(name='hybrid_preview', simulate_hardware=True, camera_source='topic', esp32_mode='wifi', mock_camera_profile='realistic_empty', enable_esp32_gateway=True, allow_simulation_fallback=True),
-    'hw_preview': RuntimeLaneSpec(name='hw_preview', simulate_hardware=False, camera_source='mock', esp32_mode='wifi', enable_esp32_gateway=True),
-    'full_demo_preview': RuntimeLaneSpec(name='full_demo_preview', simulate_hardware=True, camera_source='mock', esp32_mode='wifi', enable_esp32_gateway=True, enable_rviz=True),
-    'sim_authoritative': RuntimeLaneSpec(name='sim_authoritative', simulate_hardware=True, camera_source='mock', esp32_mode='sim', planning_capability='validated_sim', planning_authoritative=True, planning_backend_name='validated_sim_runtime', planning_backend_profile='validated_sim_default', scene_provider_mode='runtime_service', grasp_provider_mode='runtime_service', esp32_stream_semantic='synthetic_frame', esp32_frame_ingress_live=True, frame_ingress_mode='synthetic_frame_stream', forward_hardware_commands=True, hardware_execution_mode='authoritative_simulation', execution_backbone='dispatcher', execution_backbone_declared=True, enable_ros2_control=False, planning_backend_declared=True, public_runtime_tier='validated_sim', task_workbench_visible=True, task_execution_interactive=True, stm32_authoritative_simulation=True),
-    'full_demo_authoritative': RuntimeLaneSpec(name='full_demo_authoritative', simulate_hardware=True, camera_source='mock', esp32_mode='wifi', enable_esp32_gateway=True, enable_rviz=True, planning_capability='validated_sim', planning_authoritative=True, planning_backend_name='validated_sim_runtime', planning_backend_profile='validated_sim_default', scene_provider_mode='runtime_service', grasp_provider_mode='runtime_service', esp32_stream_semantic='synthetic_frame', esp32_frame_ingress_live=True, frame_ingress_mode='synthetic_frame_stream', forward_hardware_commands=True, hardware_execution_mode='authoritative_simulation', execution_backbone='dispatcher', execution_backbone_declared=True, enable_ros2_control=False, planning_backend_declared=True, public_runtime_tier='validated_sim', task_workbench_visible=True, task_execution_interactive=True, stm32_authoritative_simulation=True),
-    'real_candidate': RuntimeLaneSpec(name='real_candidate', simulate_hardware=False, camera_source='topic', esp32_mode='wifi', enable_esp32_gateway=True, planning_capability='validated_live', planning_authoritative=True, planning_backend_name='validated_live_bridge', planning_backend_profile='validated_live_bridge', scene_provider_mode='runtime_service', grasp_provider_mode='runtime_service', esp32_stream_semantic='live_frame_summary', esp32_frame_ingress_live=True, frame_ingress_mode='live_camera_stream', forward_hardware_commands=True, hardware_execution_mode='ros2_control_live', execution_backbone='ros2_control', execution_backbone_declared=False, enable_ros2_control=True, planning_backend_declared=False, public_runtime_tier='preview', task_workbench_visible=False, task_execution_interactive=False, stm32_authoritative_simulation=False),
-    'real_validated_live': RuntimeLaneSpec(name='real_validated_live', simulate_hardware=False, camera_source='topic', esp32_mode='wifi', enable_esp32_gateway=True, planning_capability='validated_live', planning_authoritative=True, planning_backend_name='validated_live_bridge', planning_backend_profile='validated_live_bridge', scene_provider_mode='runtime_service', grasp_provider_mode='runtime_service', esp32_stream_semantic='live_frame_summary', esp32_frame_ingress_live=True, frame_ingress_mode='live_camera_stream', forward_hardware_commands=True, hardware_execution_mode='ros2_control_live', execution_backbone='ros2_control', execution_backbone_declared=False, enable_ros2_control=True, planning_backend_declared=False, public_runtime_tier='preview', task_workbench_visible=False, task_execution_interactive=False, stm32_authoritative_simulation=False),
-}
 RUNTIME_PROFILE_PATH = Path(__file__).resolve().parents[1] / 'config' / 'runtime_profiles.yaml'
 PLANNING_BACKEND_PROFILE_PATH = Path(__file__).resolve().parents[1] / 'config' / 'planning_backend_profiles.yaml'
 RUNTIME_PROMOTION_RECEIPT_PATH = Path(__file__).resolve().parents[1] / 'config' / 'runtime_promotion_receipts.yaml'
@@ -180,8 +291,8 @@ def _load_runtime_lane_specs() -> dict[str, RuntimeLaneSpec]:
             esp32_frame_ingress_live=bool(payload.get('esp32_frame_ingress_live', False)),
             frame_ingress_mode=str(payload.get('frame_ingress_mode', 'reserved_endpoint')),
             forward_hardware_commands=bool(payload.get('forward_hardware_commands', False)),
-            hardware_execution_mode=str(payload.get('hardware_execution_mode', 'protocol_bridge')),
-            execution_backbone=str(payload.get('execution_backbone', 'protocol_bridge')),
+            hardware_execution_mode=str(payload.get('hardware_execution_mode', 'protocol_simulator')),
+            execution_backbone=str(payload.get('execution_backbone', 'protocol_simulator')),
             execution_backbone_declared=bool(payload.get('execution_backbone_declared', True)),
             stm32_authoritative_simulation=bool(payload.get('stm32_authoritative_simulation', False)),
             enable_ros2_control=bool(payload.get('enable_ros2_control', False)),
@@ -189,6 +300,9 @@ def _load_runtime_lane_specs() -> dict[str, RuntimeLaneSpec]:
             public_runtime_tier=str(payload.get('public_runtime_tier', '')),
             task_workbench_visible=None if payload.get('task_workbench_visible') is None else bool(payload.get('task_workbench_visible')),
             task_execution_interactive=None if payload.get('task_execution_interactive') is None else bool(payload.get('task_execution_interactive')),
+            validated_live_backbone_owner=str(payload.get('validated_live_backbone_owner', '')),
+            validated_live_controller_manager_package=str(payload.get('validated_live_controller_manager_package', '')),
+            validated_live_hardware_interface_package=str(payload.get('validated_live_hardware_interface_package', '')),
         )
     if specs:
         return specs
@@ -286,6 +400,9 @@ def _validated_live_backbone_declared(spec: RuntimeLaneSpec, *, planning_backend
         and spec.planning_authoritative
         and spec.forward_hardware_commands
         and spec.esp32_frame_ingress_live
+        and spec.validated_live_backbone_owner.strip() != ''
+        and spec.validated_live_controller_manager_package.strip() != ''
+        and spec.validated_live_hardware_interface_package.strip() != ''
     )
 
 
@@ -349,21 +466,29 @@ def _effective_planning_backend_profile_path() -> Path:
 
 
 def _load_planning_backend_declarations() -> dict[str, bool]:
+    """Load planning-backend declaration metadata.
+
+    Returns:
+        Mapping of backend profile name to declared/not-declared.
+
+    Raises:
+        RuntimeError: The generated planning-backend artifact is missing, YAML
+            support is unavailable, parsing fails, or the payload is invalid.
+
+    Boundary behavior:
+        Runtime and CI entrypoints fail fast when planning-backend metadata is
+        unavailable. This prevents live-lane truthfulness from silently falling
+        back to baked defaults.
+    """
     declarations = dict(_DEFAULT_BACKEND_DECLARATIONS)
     path = _effective_planning_backend_profile_path()
     if yaml is None or not path.exists():
-        if _allow_generated_runtime_fallback():
-            return declarations
-        raise RuntimeError(f'planning backend profiles missing or yaml unavailable: {path}')
+        raise _runtime_metadata_required('planning backend profile', path)
     try:
         raw = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     except Exception as exc:
-        if _allow_generated_runtime_fallback():
-            return declarations
         raise RuntimeError(f'failed to parse planning backend profiles: {path}: {exc}') from exc
     if not isinstance(raw, dict):
-        if _allow_generated_runtime_fallback():
-            return declarations
         raise RuntimeError(f'planning backend profiles must be a mapping: {path}')
     for name, payload in raw.items():
         if isinstance(payload, dict) and 'declared' in payload:
@@ -401,7 +526,7 @@ def runtime_lane_manifest() -> dict[str, dict[str, object]]:
         dict[str, dict[str, object]]: Plain-serializable runtime-lane map.
 
     Raises:
-        Does not raise. YAML parse failures degrade to the in-module fallback map.
+        RuntimeError: Runtime metadata artifacts are missing or malformed.
     """
     manifest: dict[str, dict[str, object]] = {}
     for name, spec in _load_runtime_lane_specs().items():
@@ -409,9 +534,36 @@ def runtime_lane_manifest() -> dict[str, dict[str, object]]:
     return manifest
 
 
+def runtime_lane_governance_manifest() -> dict[str, tuple[str, ...]]:
+    """Return the authoritative runtime-lane governance manifest.
+
+    Returns:
+        dict[str, tuple[str, ...]]: Official and experimental runtime-lane
+        classification derived from the canonical authority file.
+
+    Raises:
+        RuntimeError: When the authority file is unavailable or malformed.
+    """
+    return dict(_load_runtime_governance())
+
+
+
 def normalize_runtime_lane(mode: str | None) -> str:
+    """Normalize a caller-provided runtime lane or alias.
+
+    Args:
+        mode: Canonical runtime lane name or supported alias.
+
+    Returns:
+        Canonical runtime lane name. Unknown inputs fail closed to
+        ``sim_preview``. Retired live aliases raise a RuntimeError unless the
+        migration opt-in environment flag is set.
+
+    Raises:
+        RuntimeError: When a retired live alias is used without explicit opt-in.
+    """
     normalized = (mode or 'sim_preview').strip().lower()
-    normalized = RUNTIME_LANE_ALIASES.get(normalized, normalized)
+    normalized = _resolve_runtime_lane_alias(normalized)
     lane_specs = _load_runtime_lane_specs()
     return normalized if normalized in lane_specs else 'sim_preview'
 
@@ -453,6 +605,9 @@ def get_runtime_lane_spec(mode: str | None, *, include_mock_targets: bool = Fals
         public_runtime_tier=base.public_runtime_tier,
         task_workbench_visible=base.task_workbench_visible,
         task_execution_interactive=base.task_execution_interactive,
+        validated_live_backbone_owner=base.validated_live_backbone_owner,
+        validated_live_controller_manager_package=base.validated_live_controller_manager_package,
+        validated_live_hardware_interface_package=base.validated_live_hardware_interface_package,
     ))
 
 
@@ -608,6 +763,7 @@ def _runtime_core_nodes(*, configs: dict[str, LaunchConfiguration], lane: Runtim
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_hardware_bridge', executable='hardware_state_aggregator_node', name='hardware_state_aggregator_node'),
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_hardware_bridge', executable='hardware_command_dispatcher_node', name='hardware_command_dispatcher', parameters=[{'safety_limits_path': safety_limits}]),
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_readiness_manager', executable='readiness_manager_node', name='readiness_manager'),
+        *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_readiness_manager', executable='mode_coordinator_node', name='mode_coordinator'),
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_safety_supervisor', executable='safety_supervisor_node', name='safety_supervisor'),
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_camera_driver', executable='camera_driver', name='camera_driver_node', parameters=[{'source_type': resolved_camera_source, 'mock_profile': mock_camera_profile, 'frame_ingress_mode': frame_ingress_mode}]),
         *_node_actions(enable_managed_lifecycle=enable_managed_lifecycle, package='arm_perception', executable='perception_node', name='perception_node'),

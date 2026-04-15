@@ -12,7 +12,7 @@ import { useReadinessStore } from '@/stores/readiness';
 import { requestRuntimeResync } from '@/shared/runtime/resync';
 import { isFixtureMockEnabled } from '@/shared/mock/mode';
 import type { SystemState } from '@/models/system';
-import type { VisionFrame, VisionTarget } from '@/models/vision';
+import type { CalibrationProfile, VisionFrame, VisionTarget } from '@/models/vision';
 import type { TaskProgress } from '@/models/task';
 import type { HardwareState } from '@/models/robot';
 import type { LogEvent } from '@/models/log';
@@ -61,6 +61,7 @@ function registerSubscriptions(): void {
     ws.subscribe<SystemState>('system.state.updated', (payload) => systemStore.setState(payload)),
     ws.subscribe<VisionTarget[]>('vision.targets.updated', (payload) => visionStore.setTargets(payload)),
     ws.subscribe<VisionFrame>('vision.frame.updated', (payload) => visionStore.setFrame(payload)),
+    ws.subscribe<CalibrationProfile | null>('calibration.profile.updated', (payload) => visionStore.setCalibration(payload)),
     ws.subscribe<TaskProgress | null>('task.progress.updated', (payload) => taskStore.setCurrentTask(payload)),
     ws.subscribe<ReadinessState>('readiness.state.updated', (payload) => readinessStore.setReadiness(payload)),
     ws.subscribe<HardwareState>('hardware.state.updated', (payload) => robotStore.setHardwareState(payload)),

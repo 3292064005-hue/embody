@@ -1,5 +1,5 @@
 import type { CalibrationProfile, CalibrationProfileVersion, VisionFrame, VisionTarget } from '@/models/vision';
-import { unwrapResponse, apiClient, putVoid } from './client';
+import { unwrapResponse, apiClient, putVoid, postVoid } from './client';
 
 export async function fetchTargets(): Promise<VisionTarget[]> {
   return unwrapResponse(apiClient.get('/api/vision/targets'));
@@ -23,4 +23,8 @@ export async function saveCalibrationProfile(profile: CalibrationProfile): Promi
 
 export async function activateCalibrationProfile(profileId: string): Promise<void> {
   await putVoid(`/api/calibration/profiles/${profileId}/activate`);
+}
+
+export async function clearVisionTargets(): Promise<void> {
+  await postVoid('/api/vision/clear-targets');
 }

@@ -1,32 +1,3 @@
 {
-  "ignoredTests": [
-    {
-      "path": "tests/test_queue_and_reservation.py",
-      "owner": "runtime-platform",
-      "category": "compatibility",
-      "reason": "imports deprecated arm_task_manager mission queue / reservation compatibility packages",
-      "expires": "2026-06-30"
-    },
-    {
-      "path": "tests/test_readiness_and_planning.py",
-      "owner": "runtime-platform",
-      "category": "compatibility",
-      "reason": "imports deprecated arm_vision compatibility package instead of active camera/perception split",
-      "expires": "2026-06-30"
-    },
-    {
-      "path": "tests/test_split_stack_runtime.py",
-      "owner": "runtime-platform",
-      "category": "compatibility",
-      "reason": "regression suite still exercises deprecated arm_vision package and compatibility-only split-stack coverage",
-      "expires": "2026-06-30"
-    },
-    {
-      "path": "tests/test_verification.py",
-      "owner": "runtime-platform",
-      "category": "compatibility",
-      "reason": "imports deprecated arm_task_manager verification helper kept only for regression containment",
-      "expires": "2026-06-30"
-    }
-  ]
+  "ignoredTests": []
 }

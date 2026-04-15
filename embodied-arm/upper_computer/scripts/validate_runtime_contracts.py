@@ -13,6 +13,13 @@ CONFIG = SRC / 'arm_bringup' / 'config'
 DESCRIPTION_CONFIG = SRC / 'arm_description' / 'config'
 
 
+def _resolve_repo_peer_path(*parts: str) -> Path:
+    primary = ROOT.parent.joinpath(*parts)
+    if primary.exists():
+        return primary
+    return ROOT.joinpath(*parts)
+
+
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8')
 
@@ -62,7 +69,15 @@ def _issues() -> list[str]:
     topic_names = SRC / 'arm_common' / 'arm_common' / 'topic_names.py'
     runtime_profiles = CONFIG / 'runtime_profiles.yaml'
     runtime_manifest = ROOT / 'docs' / 'generated' / 'runtime_contract_manifest.json'
+    runtime_schema = ROOT / 'docs' / 'generated' / 'runtime_contract_schema.json'
+    openapi_yaml = ROOT / 'gateway' / 'openapi' / 'runtime_api.yaml'
+    frontend_api_generated = ROOT / 'frontend' / 'src' / 'api' / 'generated' / 'index.ts'
     promotion_receipts = CONFIG / 'runtime_promotion_receipts.yaml'
+    runtime_lane_aliases = CONFIG / 'runtime_lane_aliases.yaml'
+    firmware_semantic_profiles = CONFIG / 'firmware_semantic_profiles.yaml'
+    esp32_generated_header = _resolve_repo_peer_path('esp32s3_platformio', 'include', 'generated', 'runtime_semantic_profile.hpp')
+    esp32_project_config = _resolve_repo_peer_path('esp32s3_platformio', 'include', 'project_config.hpp')
+    esp32_platformio = _resolve_repo_peer_path('esp32s3_platformio', 'platformio.ini')
     placement_profiles = CONFIG / 'placement_profiles.yaml'
     default_calibration = CONFIG / 'default_calibration.yaml'
     safety_limits = CONFIG / 'safety_limits.yaml'
@@ -72,9 +87,12 @@ def _issues() -> list[str]:
     dispatch_text = _read(dispatcher)
     topics_text = _read(topic_names)
     profiles_text = _read(runtime_profiles)
+    alias_text = _read(runtime_lane_aliases)
+    firmware_profiles_text = _read(firmware_semantic_profiles)
     launch_text = _read(launch_factory)
     gateway_state = ROOT / 'gateway' / 'state.py'
     manifest_text = _read(runtime_manifest)
+    schema_text = _read(runtime_schema) if runtime_schema.exists() else ''
     state_text = _read(gateway_state)
 
     if 'FAULT_REPORT' not in topics_text:
@@ -108,6 +126,8 @@ def _issues() -> list[str]:
         issues.append('runtime profiles missing hardware_execution_mode lane flag')
     if 'runtime_promotion_receipts' not in launch_text and 'RUNTIME_PROMOTION_RECEIPT_PATH' not in launch_text:
         issues.append('launch factory must consume runtime promotion receipts for validated_live promotion')
+    if 'RUNTIME_LANE_ALIAS_PATH' not in launch_text or '_load_runtime_lane_alias_maps' not in launch_text:
+        issues.append('launch factory must consume generated runtime_lane_aliases.yaml instead of hard-coded alias tables')
     if 'load_runtime_promotion_receipts' not in state_text:
         issues.append('gateway state must consume runtime promotion receipts when inferring runtimeTier')
     if "result.status in {'failed', 'timeout', 'canceled', 'fault'}" not in motion_text:
@@ -120,10 +140,119 @@ def _issues() -> list[str]:
         issues.append('hardware dispatcher must validate commands against runtime safety limits before serial dispatch')
     if '"laneCapabilities"' not in manifest_text:
         issues.append('generated runtime contract manifest missing laneCapabilities summary')
+    if '"governance"' not in manifest_text:
+        issues.append('generated runtime contract manifest missing runtime governance summary')
+    if '"experimentalRuntimeLanes"' not in manifest_text:
+        issues.append('generated runtime contract manifest missing experimental runtime lane classification')
+    if '"acceptanceMatrix"' not in manifest_text:
+        issues.append('generated runtime contract manifest missing runtime acceptance matrix')
+    if not schema_text.strip():
+        issues.append('generated runtime contract schema missing')
+    elif '"validatedLiveReleaseSlice"' not in schema_text:
+        issues.append('generated runtime contract schema missing validatedLiveReleaseSlice projection')
+    if '"validatedLiveReleaseSlice"' not in manifest_text:
+        issues.append('generated runtime contract manifest missing validatedLiveReleaseSlice projection')
+    if 'OFFICIAL_RUNTIME_LANES =' in launch_text or 'EXPERIMENTAL_RUNTIME_LANES =' in launch_text:
+        issues.append('launch_factory.py must not hand-maintain official/experimental runtime lane lists')
+    if 'LEGACY_EXPERIMENTAL_RUNTIME_LANE_ALIASES' not in launch_text:
+        issues.append('launch_factory.py must explicitly quarantine retired live aliases')
+    if 'resolved:' not in alias_text:
+        issues.append('runtime_lane_aliases.yaml must expose resolved alias projections')
+    if 'default_profile:' not in firmware_profiles_text:
+        issues.append('firmware_semantic_profiles.yaml must record the default firmware semantic profile')
+
+    profiles_payload = _yaml(runtime_profiles)
+    governance_payload = _yaml(CONFIG / 'runtime_authority.yaml').get('runtime_governance', {}) if isinstance(_yaml(CONFIG / 'runtime_authority.yaml'), dict) else {}
+    official_lanes = governance_payload.get('official_runtime_lanes', []) if isinstance(governance_payload, dict) else []
+    experimental_lanes = governance_payload.get('experimental_runtime_lanes', []) if isinstance(governance_payload, dict) else []
+    if sorted(official_lanes) == sorted(experimental_lanes) or set(official_lanes) & set(experimental_lanes):
+        issues.append('runtime authority governance must keep official and experimental runtime lanes disjoint')
+    manifest_payload = json.loads(manifest_text) if manifest_text.strip() else {}
+    manifest_runtime = manifest_payload.get('runtime', {}) if isinstance(manifest_payload, dict) else {}
+    manifest_governance = manifest_runtime.get('governance', {}) if isinstance(manifest_runtime.get('governance'), dict) else {}
+    task_templates = manifest_payload.get('tasks', {}).get('templates', []) if isinstance(manifest_payload.get('tasks'), dict) else []
+    if not task_templates or not all(isinstance(item, dict) and item.get('graphKey') and isinstance(item.get('taskGraph'), dict) for item in task_templates):
+        issues.append('generated runtime contract manifest must expose task graph descriptors for all task templates')
+
+    runtime_contract = manifest_payload.get('runtime', {}) if isinstance(manifest_payload.get('runtime'), dict) else {}
+    release_slice = runtime_contract.get('validatedLiveReleaseSlice', {}) if isinstance(runtime_contract, dict) else {}
+    smoke_tests = release_slice.get('smoke_tests', []) if isinstance(release_slice, dict) else []
+    if not smoke_tests or not all((ROOT / str(item)).exists() for item in smoke_tests):
+        issues.append('validated-live release slice smoke_tests must reference existing repository tests')
+
+    openapi_text = _read(openapi_yaml)
+    frontend_api_text = _read(frontend_api_generated)
+    if 'StartTaskDecisionResponse' not in openapi_text:
+        issues.append('OpenAPI runtime_api.yaml missing task-start response schema: StartTaskDecisionResponse')
+    for token in ('episodeId', 'pluginKey', 'graphKey'):
+        if token not in openapi_text:
+            issues.append(f'OpenAPI runtime_api.yaml missing task-start contract token: {token}')
+        if token not in frontend_api_text:
+            issues.append(f'frontend generated runtime API missing task-start contract token: {token}')
+    if list(manifest_governance.get('officialRuntimeLanes', [])) != list(official_lanes):
+        issues.append('generated runtime contract manifest officialRuntimeLanes drift from runtime_authority.yaml')
+    if list(manifest_governance.get('experimentalRuntimeLanes', [])) != list(experimental_lanes):
+        issues.append('generated runtime contract manifest experimentalRuntimeLanes drift from runtime_authority.yaml')
+    acceptance_matrix = manifest_runtime.get('acceptanceMatrix', {}) if isinstance(manifest_runtime.get('acceptanceMatrix'), dict) else {}
+    for lane_name in official_lanes:
+        payload = profiles_payload.get(lane_name, {}) if isinstance(profiles_payload, dict) else {}
+        if str(payload.get('public_runtime_tier', '') or '') == 'validated_live':
+            issues.append(f'official runtime lane {lane_name} must not project validated_live as a public tier')
+        acceptance = acceptance_matrix.get(lane_name, {}) if isinstance(acceptance_matrix.get(lane_name), dict) else {}
+        if str(acceptance.get('deliveryTrack', '') or '') != 'official_active':
+            issues.append(f'acceptance matrix must classify official runtime lane {lane_name} as official_active')
+    for lane_name in experimental_lanes:
+        payload = profiles_payload.get(lane_name, {}) if isinstance(profiles_payload, dict) else {}
+        if str(payload.get('runtime_delivery_track', '') or '') != 'experimental':
+            issues.append(f'experimental runtime lane {lane_name} must project runtime_delivery_track=experimental')
+        acceptance = acceptance_matrix.get(lane_name, {}) if isinstance(acceptance_matrix.get(lane_name), dict) else {}
+        if str(acceptance.get('deliveryTrack', '') or '') != 'experimental':
+            issues.append(f'acceptance matrix must classify experimental runtime lane {lane_name} as experimental')
+        if 'requiredEvidence' not in acceptance or not list(acceptance.get('requiredEvidence', [])):
+            issues.append(f'acceptance matrix must record required evidence for experimental lane {lane_name}')
+    if 'simulated_local_only' in _read(SRC / 'arm_readiness_manager' / 'arm_readiness_manager' / 'contract_defs.py'):
+        issues.append('readiness contract must not retain the deprecated simulated_local_only mode token')
+
+    alias_payload = _yaml(runtime_lane_aliases)
+    alias_resolved = alias_payload.get('resolved', {}) if isinstance(alias_payload.get('resolved'), dict) else {}
+    manifest_aliases = manifest_runtime.get('laneAliases', {}) if isinstance(manifest_runtime.get('laneAliases'), dict) else {}
+    if manifest_aliases != dict(alias_resolved.get('active', {})):
+        issues.append('generated runtime contract manifest laneAliases drift from runtime_lane_aliases.yaml')
+    if manifest_runtime.get('compatibilityLaneAliases', {}) != dict(alias_resolved.get('compatibility', {})):
+        issues.append('generated runtime contract manifest compatibilityLaneAliases drift from runtime_lane_aliases.yaml')
+    if manifest_runtime.get('experimentalLaneAliases', {}) != dict(alias_resolved.get('experimental', {})):
+        issues.append('generated runtime contract manifest experimentalLaneAliases drift from runtime_lane_aliases.yaml')
+    if manifest_runtime.get('legacyExperimentalLaneAliases', {}) != dict(alias_resolved.get('retired', {})):
+        issues.append('generated runtime contract manifest legacyExperimentalLaneAliases drift from runtime_lane_aliases.yaml')
+
+    firmware_payload = _yaml(firmware_semantic_profiles)
+    firmware_manifest = manifest_runtime.get('firmwareSemanticProfiles', {}) if isinstance(manifest_runtime.get('firmwareSemanticProfiles'), dict) else {}
+    if firmware_manifest != dict(firmware_payload.get('esp32', {})):
+        issues.append('generated runtime contract manifest firmwareSemanticProfiles drift from firmware_semantic_profiles.yaml')
+    header_text = _read(esp32_generated_header)
+    project_config_text = _read(esp32_project_config)
+    platformio_text = _read(esp32_platformio)
+    if 'EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_PREVIEW_RESERVED' not in header_text:
+        issues.append('generated ESP32 semantic header must expose preview_reserved profile macro')
+    if 'include "generated/runtime_semantic_profile.hpp"' not in project_config_text:
+        issues.append('ESP32 project_config.hpp must include the generated runtime semantic profile header')
+    if 'EMBODIED_ARM_DEFAULT_STREAM_SEMANTIC' not in project_config_text:
+        issues.append('ESP32 project_config.hpp must source default stream semantics from the generated authority header')
+    if 'EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE=EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_PREVIEW_RESERVED' not in platformio_text:
+        issues.append('ESP32 platformio.ini must pin the default semantic profile to preview_reserved')
 
     receipt_payload = _yaml(promotion_receipts)
-    if not isinstance(receipt_payload.get('validated_live'), dict) or bool(receipt_payload.get('validated_live', {}).get('promoted', False)):
-        issues.append('validated_live promotion receipt must exist and remain fail-closed by default')
+    live_receipt = receipt_payload.get('validated_live') if isinstance(receipt_payload.get('validated_live'), dict) else None
+    if not isinstance(live_receipt, dict):
+        issues.append('validated_live promotion receipt must exist')
+    else:
+        mode = str(live_receipt.get('promotion_mode', 'manual') or 'manual').strip().lower()
+        if mode not in {'manual', 'automatic_when_ready'}:
+            issues.append('validated_live promotion receipt uses unsupported promotion_mode')
+        if mode == 'manual' and bool(live_receipt.get('promoted', False)):
+            issues.append('validated_live manual promotion receipt must remain fail-closed by default')
+        if mode == 'automatic_when_ready' and bool(live_receipt.get('promoted', False)) and not bool(live_receipt.get('effective', False)):
+            issues.append('validated_live automatic promotion receipt cannot report promoted without effective evidence closure')
 
     placement = _normalize_place_profiles(_yaml(placement_profiles))
     calibration_payload = _yaml(default_calibration)

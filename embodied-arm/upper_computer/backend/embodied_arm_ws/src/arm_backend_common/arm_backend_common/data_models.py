@@ -170,6 +170,7 @@ class TaskRequest:
     request_id: str = ""
     correlation_id: str = ""
     task_run_id: str = ""
+    episode_id: str = ""
     queued_monotonic: float = field(default_factory=time.monotonic)
 
 
@@ -200,6 +201,7 @@ class TaskContext:
     request_id: str = ""
     correlation_id: str = ""
     task_run_id: str = ""
+    episode_id: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -215,6 +217,7 @@ class TaskContext:
             request_id=request.request_id,
             correlation_id=request.correlation_id,
             task_run_id=request.task_run_id,
+            episode_id=request.episode_id,
             metadata=dict(request.metadata),
         )
 

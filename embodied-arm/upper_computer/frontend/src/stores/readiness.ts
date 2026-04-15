@@ -23,6 +23,24 @@ const emptyReadiness: ReadinessState = {
   checks: {},
   commandPolicies: {},
   commandSummary: { allowed: [], blocked: [], readyCount: 0, blockedCount: 0 },
+  runtimeDeliveryTrack: 'bootstrap',
+  executionBackbone: 'protocol_simulator',
+  executionBackboneSummary: {
+    runtimeDeliveryTrack: 'bootstrap',
+    executionBackbone: 'protocol_simulator',
+    executionMode: 'protocol_simulator',
+    authoritativeTransport: false,
+    sequentialDispatch: false,
+    requestedRuntimeProfile: '',
+    activeRuntimeLane: '',
+    backboneLabel: 'Protocol Simulator',
+    firmwareProfile: 'preview_reserved',
+    firmwareMessage: 'bootstrap readiness snapshot',
+  },
+  promotionReceipts: {},
+  releaseGates: { repoGate: 'not_executed', targetGate: 'not_executed', hilGate: 'not_executed', releaseChecklistGate: 'not_executed', releaseGate: 'not_executed' },
+  firmwareSemanticProfile: 'preview_reserved',
+  firmwareSemanticMessage: 'bootstrap readiness snapshot',
   source: 'bootstrap',
   simulated: false,
   authoritative: false,
@@ -60,6 +78,13 @@ export const useReadinessStore = defineStore('readiness', {
       this.checks = payload.checks;
       this.commandPolicies = payload.commandPolicies || {};
       this.commandSummary = payload.commandSummary || { allowed: [], blocked: [], readyCount: 0, blockedCount: 0 };
+      this.runtimeDeliveryTrack = payload.runtimeDeliveryTrack || 'bootstrap';
+      this.executionBackbone = payload.executionBackbone || 'protocol_simulator';
+      this.executionBackboneSummary = payload.executionBackboneSummary || this.executionBackboneSummary;
+      this.promotionReceipts = payload.promotionReceipts || {};
+      this.releaseGates = payload.releaseGates || this.releaseGates;
+      this.firmwareSemanticProfile = payload.firmwareSemanticProfile || 'preview_reserved';
+      this.firmwareSemanticMessage = payload.firmwareSemanticMessage || '';
       this.source = payload.source || 'backend';
       this.simulated = Boolean(payload.simulated);
       this.authoritative = Boolean(payload.authoritative);

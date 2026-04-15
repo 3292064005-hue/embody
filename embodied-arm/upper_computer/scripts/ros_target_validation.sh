@@ -8,6 +8,7 @@ ARTIFACT_DIR="${ROOT_DIR}/artifacts"
 ENV_REPORT="${ARTIFACT_DIR}/target_env_report.json"
 GATE_REPORT="${ARTIFACT_DIR}/release_gates/target_runtime_gate.json"
 RELEASE_EVIDENCE="${ARTIFACT_DIR}/release_gates/release_evidence.json"
+RUNTIME_BASELINE_REPORT="${ARTIFACT_DIR}/release_gates/runtime_baseline_report.json"
 
 mkdir -p "${ARTIFACT_DIR}" "${ARTIFACT_DIR}/release_gates" "${ARTIFACT_DIR}/hil"
 
@@ -18,6 +19,7 @@ NEGATIVE_PATH_STATUS="not_executed"
 HIL_STATUS="not_executed"
 REPO_GATE_STATUS="not_executed"
 RELEASE_CHECKLIST_STATUS="not_executed"
+RUNTIME_BASELINE_STATUS="not_executed"
 CURRENT_STEP="env"
 
 write_gate_report() {
@@ -30,6 +32,7 @@ write_gate_report() {
     --step ros_build="${ROS_BUILD_STATUS}" \
     --step ros_smoke="${ROS_SMOKE_STATUS}" \
     --step negative_path_subset="${NEGATIVE_PATH_STATUS}" \
+    --step runtime_baseline="${RUNTIME_BASELINE_STATUS}" \
     --step hil="${HIL_STATUS}" \
     --step release_checklist="${RELEASE_CHECKLIST_STATUS}" >/dev/null
 }
@@ -42,6 +45,7 @@ finalize() {
       ros_build) ROS_BUILD_STATUS="failed" ;;
       ros_smoke) ROS_SMOKE_STATUS="failed" ;;
       negative_path_subset) NEGATIVE_PATH_STATUS="failed" ;;
+      runtime_baseline) RUNTIME_BASELINE_STATUS="failed" ;;
       hil) HIL_STATUS="failed" ;;
     esac
   fi
@@ -92,6 +96,12 @@ ROS_SMOKE_STATUS="passed"
 CURRENT_STEP="negative_path_subset"
 pytest -q tests/test_runtime_semantic_contracts.py tests/test_safety_policy.py
 NEGATIVE_PATH_STATUS="passed"
+
+CURRENT_STEP="runtime_baseline"
+python "${ROOT_DIR}/scripts/check_runtime_baseline_gate.py" \
+  --root "${ARTIFACT_DIR}/gateway_observability" \
+  --out "${RUNTIME_BASELINE_REPORT}" >/dev/null
+RUNTIME_BASELINE_STATUS="passed"
 
 CURRENT_STEP="hil"
 HIL_STATUS="not_executed"

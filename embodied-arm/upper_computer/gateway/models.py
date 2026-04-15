@@ -103,26 +103,6 @@ def bootstrap_command_policies(reason: str = 'waiting for authoritative readines
     return {name: _command_policy(False, reason) for name in PUBLIC_COMMAND_NAMES}
 
 
-def simulated_local_only_command_policies() -> dict[str, dict[str, Any]]:
-    """Return explicit dev-HMI-only policies for local simulated fallback.
-
-    Returns:
-        Mapping keyed by public command name.
-    """
-    reason = 'dev-hmi-mock simulated runtime'
-    policies = {name: _command_policy(False, reason) for name in PUBLIC_COMMAND_NAMES}
-    policies.update({
-        'startTask': _command_policy(False, 'task execution requires authoritative ROS runtime readiness'),
-        'stopTask': _command_policy(True, reason),
-        'jog': _command_policy(True, reason),
-        'servoCartesian': _command_policy(True, reason),
-        'gripper': _command_policy(True, reason),
-        'home': _command_policy(True, reason),
-        'resetFault': _command_policy(True, reason),
-        'recover': _command_policy(True, reason),
-    })
-    return policies
-
 def build_command_summary(command_policies: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Summarize backend command policies for UI consumption."""
     allowed = [name for name, payload in command_policies.items() if bool(payload.get('allowed'))]
@@ -489,15 +469,19 @@ def map_camera_frame_summary(payload: dict[str, Any]) -> dict[str, Any]:
     width = int(frame.get('width', 640) or 640)
     height = int(frame.get('height', 480) or 480)
     frame_payload = frame.get('payload') if isinstance(frame.get('payload'), dict) else {}
+    visual_provenance = dict(frame_payload.get('visualProvenance') or {}) if isinstance(frame_payload.get('visualProvenance'), dict) else {}
     preview_data_url = _coerce_preview_data_url(frame_payload) or _coerce_preview_data_url(frame)
     source_type = str(frame.get('sourceType', frame_payload.get('sourceType', frame_payload.get('mockProfile', 'unknown'))) or 'unknown')
+    source_class = str(frame.get('sourceClass', frame_payload.get('sourceClass', visual_provenance.get('sourceClass', 'unknown'))) or 'unknown')
     frame_ingress_mode = str(payload.get('frameIngressMode', frame.get('frameIngressMode', 'unknown')) or 'unknown')
-    authoritative_target_source = str(frame_payload.get('authoritativeTargetSource', '') or '')
+    detection_source_mode = str(frame_payload.get('detectionSourceMode', visual_provenance.get('detectionSourceMode', 'unknown')) or 'unknown')
+    authoritative_target_source = str(frame_payload.get('authoritativeTargetSource', visual_provenance.get('authoritativeTargetSource', detection_source_mode)) or detection_source_mode)
     targets = frame_payload.get('targets') if isinstance(frame_payload.get('targets'), list) else []
-    synthetic_preview = source_type == 'mock' or frame_ingress_mode == 'synthetic_frame_stream' or authoritative_target_source == 'synthetic_perception'
-    frame_ingress_live = bool(payload.get('frameIngressLive', frame.get('frameIngressLive', frame_ingress_mode in {'synthetic_frame_stream', 'live_camera_stream'})))
-    camera_live = bool(payload.get('cameraLive', frame.get('cameraLive', source_type == 'topic' or frame_ingress_mode == 'live_camera_stream')))
-    if preview_data_url is None and synthetic_preview:
+    synthetic_preview = source_class == 'synthetic' or detection_source_mode == 'synthetic_targets' or authoritative_target_source == 'synthetic_perception'
+    renderable_preview = bool(frame_payload.get('renderablePreview', visual_provenance.get('renderablePreview', preview_data_url is not None or synthetic_preview)))
+    frame_ingress_live = bool(payload.get('frameIngressLive', frame.get('frameIngressLive', visual_provenance.get('frameIngressLive', frame_ingress_mode in {'synthetic_frame_stream', 'live_camera_stream'}))))
+    camera_live = bool(payload.get('cameraLive', frame.get('cameraLive', visual_provenance.get('cameraLive', source_type == 'topic' or frame_ingress_mode == 'live_camera_stream'))))
+    if preview_data_url is None and synthetic_preview and renderable_preview:
         preview_data_url = _build_synthetic_preview_data_url(frame, width=width, height=height)
     provider_kind = (
         'synthetic_scene' if synthetic_preview else
@@ -519,6 +503,7 @@ def map_camera_frame_summary(payload: dict[str, Any]) -> dict[str, Any]:
         'frameId': str(frame.get('frame_id', frame.get('frameId', 'camera_optical_frame')) or 'camera_optical_frame'),
         'source': str(payload.get('source', 'camera_runtime') or 'camera_runtime'),
         'sourceType': source_type,
+        'sourceClass': source_class,
         'mockProfile': str(frame_payload.get('mockProfile', '')),
         'frameSequence': int(frame_payload.get('frameSequence', 0) or 0),
         'targetCount': len(targets),
@@ -530,12 +515,15 @@ def map_camera_frame_summary(payload: dict[str, Any]) -> dict[str, Any]:
         'frameIngressLive': frame_ingress_live,
         'cameraLive': camera_live,
         'syntheticPreview': synthetic_preview,
+        'renderablePreview': renderable_preview,
         'frameTransportHealthy': frame_ingress_live,
         'authoritativeVisualSource': authoritative_target_source,
+        'detectionSourceMode': detection_source_mode,
         'message': message,
         'summary': {
             'kind': str(frame_payload.get('kind', 'frame_summary') or 'frame_summary'),
             'authoritativeTargetSource': authoritative_target_source,
+            'detectionSourceMode': detection_source_mode,
         },
     }
 
@@ -679,6 +667,7 @@ def map_log_event_message(msg: Any) -> dict[str, Any]:
         'requestId': envelope.get('requestId'),
         'correlationId': envelope.get('correlationId'),
         'taskRunId': envelope.get('taskRunId'),
+        'episodeId': envelope.get('episodeId') or envelope.get('taskRunId'),
         'stage': envelope.get('stage'),
         'errorCode': envelope.get('errorCode'),
         'operatorActionable': envelope.get('operatorActionable'),

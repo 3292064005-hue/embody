@@ -3,7 +3,10 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+try:
+    from pydantic import BaseModel, Field, field_validator
+except ImportError:  # pragma: no cover - compatibility for environments still on Pydantic v1
+    from pydantic import BaseModel, Field, validator as field_validator
 
 TaskTypeLiteral = Literal['pick_place', 'sort_by_color', 'sort_by_qr', 'clear_table']
 TargetCategoryLiteral = Literal['red', 'blue', 'green', 'qr_a', 'qr_b', 'qr_c']
@@ -26,6 +29,26 @@ class StartTaskRequest(BaseModel):
     templateId: str | None = Field(default=None, min_length=1)
     taskType: TaskTypeLiteral = Field(default='pick_place')
     targetCategory: TargetCategoryLiteral | None = None
+
+
+class StartTaskDecisionResponse(BaseModel):
+    taskId: str
+    taskRunId: str
+    episodeId: str
+    templateId: str
+    pluginKey: str
+    graphKey: str
+    runtimeTier: Literal['preview', 'validated_sim', 'validated_live']
+    productLine: str
+
+
+class StartTaskResponseEnvelope(BaseModel):
+    code: int = 0
+    message: str = 'ok'
+    requestId: str
+    correlationId: str | None = None
+    timestamp: str
+    data: StartTaskDecisionResponse
 
 
 class CalibrationRoi(BaseModel):

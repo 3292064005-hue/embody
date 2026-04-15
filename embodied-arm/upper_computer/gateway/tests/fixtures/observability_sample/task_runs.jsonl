@@ -1,0 +1,2 @@
+{"event":"task_run.progress","runtimeTier":"validated_sim","durationMs":1200}
+{"event":"task_run.finished","runtimeTier":"validated_sim","durationMs":3200,"success":true}

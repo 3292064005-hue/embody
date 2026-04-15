@@ -2,10 +2,41 @@ export type TaskType = 'pick_place' | 'sort_by_color' | 'sort_by_qr' | 'clear_ta
 export type TargetCategory = 'red' | 'blue' | 'green' | 'qr_a' | 'qr_b' | 'qr_c';
 export type TaskStage = 'created' | 'perception' | 'plan' | 'execute' | 'verify' | 'done' | 'failed';
 
+
+export interface TaskGraphNode {
+  id: string;
+  kind: 'perception' | 'selection' | 'planning' | 'execution' | 'verification' | 'terminal' | string;
+  stage?: string;
+  label: string;
+  terminal?: boolean;
+}
+
+export interface TaskGraphEdge {
+  from: string;
+  to: string;
+  condition: string;
+}
+
+export interface TaskGraphSpec {
+  graphKey: string;
+  entryNode: string;
+  sequenceMode: string;
+  pluginKey: string;
+  preconditions: string[];
+  nodes: TaskGraphNode[];
+  edges: TaskGraphEdge[];
+  recoveryPolicy?: { mode: string; maxAutomaticRetry?: number; maxRetries?: number };
+  recovery?: { mode: string; maxAutomaticRetry?: number; maxRetries?: number };
+  auditSurface?: string[];
+  graphVersion?: string;
+  templateId?: string;
+}
+
 export interface TaskProgress {
   taskId: string;
   templateId?: string;
   taskType: TaskType;
+  graphKey?: string;
   stage: TaskStage;
   percent: number;
   retryCount: number;
@@ -15,6 +46,7 @@ export interface TaskProgress {
   placeProfile?: string;
   runtimeTier?: 'preview' | 'validated_sim' | 'validated_live';
   lastMessage?: string;
+  episodeId?: string;
 }
 
 export interface TaskTemplate {
@@ -28,6 +60,12 @@ export interface TaskTemplate {
   riskLevel?: 'low' | 'medium' | 'high';
   requiredRuntimeTier?: 'preview' | 'validated_sim' | 'validated_live';
   operatorHint?: string;
+  capabilityTags?: string[];
+  preconditions?: string[];
+  sequenceMode?: 'single_target' | 'selector_routed' | 'continuous' | string;
+  pluginKey?: string;
+  graphKey?: string;
+  taskGraph?: TaskGraphSpec;
 }
 
 export interface TaskHistoryEntry {
@@ -46,6 +84,7 @@ export interface TaskHistoryEntry {
   requestId?: string;
   correlationId?: string;
   taskRunId?: string;
+  episodeId?: string;
 }
 
 export interface StartTaskPayload {

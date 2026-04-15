@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.6",
+  "runtime": {
+    "publicReadinessFields": [
+      "runtimeHealthy",
+      "modeReady",
+      "allReady",
+      "runtimeRequiredChecks",
+      "runtimeMissingChecks",
+      "requiredChecks",
+      "missingChecks",
+      "missingDetails",
+      "checks",
+      "commandPolicies",
+      "commandSummary",
+      "authoritative",
+      "simulated",
+      "runtimeTier",
+      "productLine",
+      "runtimeDeliveryTrack",
+      "executionBackbone",
+      "executionBackboneSummary",
+      "promotionReceipts",
+      "releaseGates",
+      "firmwareSemanticProfile",
+      "firmwareSemanticMessage",
+      "manualCommandLimits",
+      "runtimeConfigVersion",
+      "source",
+      "updatedAt"
+    ],
+    "runtimeLaneKeys": [
+      "full_demo_authoritative",
+      "full_demo_preview",
+      "hw_preview",
+      "hybrid_preview",
+      "live_control",
+      "live_proto",
+      "real_preview",
+      "real_validated_live",
+      "sim_authoritative",
+      "sim_perception_preview",
+      "sim_preview"
+    ],
+    "productLineKeys": [
+      "preview",
+      "validated_live",
+      "validated_sim"
+    ],
+    "validatedLiveReleaseSlice": {
+      "lane": "real_validated_live",
+      "bringup_launch": "arm_bringup/launch/runtime_real_validated_live.launch.py",
+      "target_env_script": "scripts/ros_target_validation.sh",
+      "target_gate_report": "artifacts/release_gates/target_runtime_gate.json",
+      "hil_checklist_artifact": "artifacts/hil/hil_checklist.json",
+      "release_checklist_artifact": "docs/evidence/validated_live/release_checklist.md",
+      "smoke_tests": [
+        "backend/embodied_arm_ws/tests/test_ros_launch_smoke.py",
+        "backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py",
+        "backend/embodied_arm_ws/tests/test_runtime_lane_validated_live.py",
+        "backend/embodied_arm_ws/tests/test_moveit_validated_live_fail_closed.py"
+      ],
+      "rollback_lane": "sim_authoritative"
+    }
+  },
+  "tasks": {
+    "templateIds": [
+      "pick-red",
+      "pick-blue",
+      "pick-green",
+      "sort-color",
+      "sort-qr",
+      "clear-table"
+    ],
+    "graphKeys": [
+      "pick-red",
+      "pick-blue",
+      "pick-green",
+      "sort-color",
+      "sort-qr",
+      "clear-table"
+    ]
+  }
+}

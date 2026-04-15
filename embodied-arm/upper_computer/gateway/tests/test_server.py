@@ -17,6 +17,8 @@ def test_emergency_stop_is_independent_endpoint():
     with TestClient(app) as client:
         resp = client.post('/api/system/emergency-stop', headers={'X-Operator-Role': 'operator'})
         assert resp.status_code == 200
+        assert resp.json()['data']['localPreviewOnly'] is True
+        assert resp.json()['data']['commandMode'] == 'local_preview_only'
         summary = client.get('/api/system/summary').json()['data']
         assert summary['emergencyStop'] is True
         assert summary['mode'] == 'safe_stop'
@@ -29,6 +31,7 @@ def test_manual_jog_requires_maintainer_and_manual_mode():
         client.post('/api/hardware/set-mode', json={'mode': 'maintenance'}, headers={'X-Operator-Role': 'maintainer'})
         ok = client.post('/api/hardware/jog-joint', json={'jointIndex': 0, 'direction': 1, 'stepDeg': 2.0}, headers={'X-Operator-Role': 'maintainer'})
         assert ok.status_code == 200
+        assert ok.json()['data']['localPreviewOnly'] is True
 
 
 def test_start_task_is_blocked_when_task_policy_is_not_ready():
@@ -77,6 +80,7 @@ def test_servo_cartesian_available_in_maintenance_mode():
         client.post('/api/hardware/set-mode', json={'mode': 'maintenance'}, headers={'X-Operator-Role': 'maintainer'})
         response = client.post('/api/hardware/servo-cartesian', json={'axis': 'x', 'delta': 0.02}, headers={'X-Operator-Role': 'maintainer'})
         assert response.status_code == 200
+        assert response.json()['data']['localPreviewOnly'] is True
 
 
 def test_activate_profile_calls_backend_activation(monkeypatch):
@@ -122,3 +126,21 @@ def test_health_ready_exposes_observability_degradation_fields() -> None:
         assert 'lastPersistenceError' in observability
         assert 'sinkWritable' in observability
         assert 'degraded' in observability
+
+
+def test_system_commands_expose_local_preview_transport_result():
+    with TestClient(app) as client:
+        response = client.post('/api/system/home', headers={'X-Operator-Role': 'operator'})
+        assert response.status_code == 200
+        payload = response.json()['data']
+        assert payload['localPreviewOnly'] is True
+        assert payload['commandMode'] == 'local_preview_only'
+
+
+def test_task_stop_exposes_local_preview_transport_result():
+    with TestClient(app) as client:
+        response = client.post('/api/task/stop', headers={'X-Operator-Role': 'operator'})
+        assert response.status_code == 200
+        payload = response.json()['data']
+        assert payload['localPreviewOnly'] is True
+        assert payload['commandMode'] == 'local_preview_only'

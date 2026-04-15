@@ -22,16 +22,21 @@ sim_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 sim_perception_preview:
   simulate_hardware: true
   camera_source: mock
@@ -55,16 +60,21 @@ sim_perception_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 real_preview:
   simulate_hardware: false
   camera_source: topic
@@ -88,16 +98,21 @@ real_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 hybrid_preview:
   simulate_hardware: true
   camera_source: topic
@@ -121,16 +136,21 @@ hybrid_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 hw_preview:
   simulate_hardware: false
   camera_source: mock
@@ -154,16 +174,21 @@ hw_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 full_demo_preview:
   simulate_hardware: true
   camera_source: mock
@@ -187,16 +212,21 @@ full_demo_preview:
   esp32_frame_ingress_live: false
   frame_ingress_mode: reserved_endpoint
   forward_hardware_commands: false
-  hardware_execution_mode: protocol_bridge
-  execution_backbone: protocol_bridge
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
   execution_backbone_declared: true
   enable_ros2_control: false
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 sim_authoritative:
   simulate_hardware: true
   camera_source: mock
@@ -227,11 +257,16 @@ sim_authoritative:
   enable_ros2_control: false
   stm32_authoritative_simulation: true
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: validated_sim
   task_workbench_visible: true
   task_execution_interactive: true
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
 full_demo_authoritative:
   simulate_hardware: true
   camera_source: mock
@@ -262,12 +297,56 @@ full_demo_authoritative:
   enable_ros2_control: false
   stm32_authoritative_simulation: true
   planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
   validated_live_backbone_declared: false
   validated_live_backbone_missing: []
   public_runtime_tier: validated_sim
   task_workbench_visible: true
   task_execution_interactive: true
-real_candidate:
+  runtime_delivery_track: official_active
+  official_runtime_lane: true
+live_proto:
+  simulate_hardware: false
+  camera_source: topic
+  esp32_mode: wifi
+  include_mock_targets: false
+  mock_camera_profile: authoritative_demo
+  enable_esp32_gateway: true
+  esp32_base_url: http://esp32.local
+  enable_moveit: false
+  enable_rviz: false
+  enable_lifecycle_supervisor: true
+  enable_managed_lifecycle: true
+  autostart_managed_lifecycle: true
+  allow_simulation_fallback: false
+  planning_capability: contract_only
+  planning_authoritative: false
+  planning_backend_name: fallback_contract
+  scene_provider_mode: embedded_core
+  grasp_provider_mode: embedded_core
+  esp32_stream_semantic: reserved
+  esp32_frame_ingress_live: false
+  frame_ingress_mode: reserved_endpoint
+  forward_hardware_commands: false
+  hardware_execution_mode: protocol_simulator
+  execution_backbone: protocol_simulator
+  execution_backbone_declared: true
+  enable_ros2_control: false
+  live_stage: proto
+  planning_backend_declared: true
+  validated_live_backbone_owner: ''
+  validated_live_controller_manager_package: ''
+  validated_live_hardware_interface_package: ''
+  validated_live_backbone_declared: false
+  validated_live_backbone_missing: []
+  public_runtime_tier: preview
+  task_workbench_visible: false
+  task_execution_interactive: false
+  runtime_delivery_track: experimental
+  official_runtime_lane: false
+live_control:
   simulate_hardware: false
   camera_source: topic
   esp32_mode: wifi
@@ -291,18 +370,24 @@ real_candidate:
   esp32_frame_ingress_live: true
   frame_ingress_mode: live_camera_stream
   forward_hardware_commands: true
-  hardware_execution_mode: ros2_control_live
+  hardware_execution_mode: ros2_control_candidate
   execution_backbone: ros2_control
-  execution_backbone_declared: false
+  execution_backbone_declared: true
   enable_ros2_control: true
   stm32_authoritative_simulation: false
   validated_live_backbone: validated_live
-  planning_backend_declared: false
-  validated_live_backbone_declared: false
+  live_stage: control
+  planning_backend_declared: true
+  validated_live_backbone_owner: arm_control_bringup
+  validated_live_controller_manager_package: arm_control_bringup
+  validated_live_hardware_interface_package: arm_hardware_interface
+  validated_live_backbone_declared: true
   validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: experimental
+  official_runtime_lane: false
 real_validated_live:
   simulate_hardware: false
   camera_source: topic
@@ -329,15 +414,19 @@ real_validated_live:
   forward_hardware_commands: true
   hardware_execution_mode: ros2_control_live
   execution_backbone: ros2_control
-  execution_backbone_declared: false
+  execution_backbone_declared: true
   enable_ros2_control: true
   stm32_authoritative_simulation: false
   validated_live_backbone: validated_live
-  planning_backend_declared: false
-  validated_live_backbone_declared: false
-  validated_live_backbone_missing:
-  - live_planning_backend_declared
-  - ros2_control_execution_backbone_declared
+  live_stage: validated_live
+  planning_backend_declared: true
+  validated_live_backbone_owner: arm_control_bringup
+  validated_live_controller_manager_package: arm_control_bringup
+  validated_live_hardware_interface_package: arm_hardware_interface
+  validated_live_backbone_declared: true
+  validated_live_backbone_missing: []
   public_runtime_tier: preview
   task_workbench_visible: false
   task_execution_interactive: false
+  runtime_delivery_track: experimental
+  official_runtime_lane: false

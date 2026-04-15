@@ -46,11 +46,13 @@ CMD_MAP = {
     'OPEN_GRIPPER': HardwareCommand.OPEN_GRIPPER,
     'CLOSE_GRIPPER': HardwareCommand.CLOSE_GRIPPER,
     'QUERY_STATE': HardwareCommand.QUERY_STATE,
+    'SET_JOINTS': HardwareCommand.SET_JOINTS,
     'JOG_JOINT': HardwareCommand.SET_JOINTS,
     'SERVO_CARTESIAN': HardwareCommand.SET_JOINTS,
 }
 
 SOFT_COMMANDS = {'SET_MODE'}
+JOINT_STREAM_PRODUCERS = frozenset({'ros2_control_backbone', 'ros2_control', 'arm_hardware_interface'})
 
 
 class HardwareCommandDispatcherNode(ManagedLifecycleNode):
@@ -97,6 +99,32 @@ class HardwareCommandDispatcherNode(ManagedLifecycleNode):
             pass
         return limits
 
+    @staticmethod
+    def _command_producer(payload: Dict[str, Any]) -> str:
+        producer = str(payload.get('producer', '') or '').strip()
+        if producer:
+            return producer
+        return str(payload.get('source', '') or '').strip()
+
+    @staticmethod
+    def _validate_command_origin(payload: Dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            raise SafetyViolation('hardware command payload must be a dictionary')
+        kind = str(payload.get('kind', '') or '')
+        if kind != 'SET_JOINTS':
+            return
+        producer = HardwareCommandDispatcherNode._command_producer(payload)
+        if producer not in JOINT_STREAM_PRODUCERS:
+            raise SafetyViolation(
+                'hardware_dispatcher SET_JOINTS: producer '
+                f'{producer or "<empty>"} is not authorized for joint-stream transport'
+            )
+        command_plane = str(payload.get('command_plane', '') or '').strip()
+        if command_plane and command_plane != 'joint_stream':
+            raise SafetyViolation(
+                'hardware_dispatcher SET_JOINTS: command_plane must be joint_stream when provided'
+            )
+
     def _validate_command_against_safety(self, payload: Dict[str, Any]) -> None:
         """Validate one high-level hardware command against runtime safety limits.
 
@@ -126,6 +154,12 @@ class HardwareCommandDispatcherNode(ManagedLifecycleNode):
                 step_deg=float(payload.get('stepDeg', 0.0) or 0.0),
                 context='hardware_dispatcher JOG_JOINT',
             )
+        elif kind == 'SET_JOINTS':
+            joint_names = [str(item) for item in list(payload.get('joint_names') or [])]
+            positions = [float(item) for item in list(payload.get('joint_positions') or [])]
+            limits.require_joint_positions(joint_names, positions, context='hardware_dispatcher SET_JOINTS')
+            if payload.get('gripper_position') is not None:
+                limits.require_joint_positions(['gripper_joint'], [float(payload.get('gripper_position'))], context='hardware_dispatcher SET_JOINTS gripper')
         if kind in {'OPEN_GRIPPER', 'CLOSE_GRIPPER'} and payload.get('force') is not None:
             limits.require_gripper_force(float(payload.get('force', 0.0) or 0.0), context=f'hardware_dispatcher {kind}')
         target = payload.get('execution_target')
@@ -250,6 +284,7 @@ class HardwareCommandDispatcherNode(ManagedLifecycleNode):
                 self.get_logger().warn(f'Unknown hardware command kind: {kind}')
                 self._publish_feedback(self._payload_feedback(payload, status='nack', sequence=-1, message='unsupported command kind', **HardwareCommandDispatcherNode._semantic_feedback(transport_state='rejected', transport_result='unsupported_command', actuation_state='failed', actuation_result='unsupported_command')))
                 return
+            HardwareCommandDispatcherNode._validate_command_origin(payload)
             HardwareCommandDispatcherNode._validate_command_against_safety(self, payload)
             sequence = self._allocate_sequence()
             frame = build_frame(command, sequence, payload)

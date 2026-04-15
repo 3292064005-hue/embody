@@ -86,7 +86,7 @@ def test_preview_runtime_lane_manifest_preserves_reserved_esp32_stream_semantics
         assert lane['esp32_frame_ingress_live'] is False, lane_name
         assert lane['frame_ingress_mode'] == 'reserved_endpoint', lane_name
         assert lane['forward_hardware_commands'] is False, lane_name
-        assert lane['hardware_execution_mode'] == 'protocol_bridge', lane_name
+        assert lane['hardware_execution_mode'] == 'protocol_simulator', lane_name
 
 
 

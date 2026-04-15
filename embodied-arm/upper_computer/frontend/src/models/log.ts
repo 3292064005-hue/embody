@@ -9,6 +9,7 @@ export interface LogEvent {
   requestId?: string;
   correlationId?: string;
   taskRunId?: string;
+  episodeId?: string;
   event: string;
   message: string;
   payload?: Record<string, unknown>;

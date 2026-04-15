@@ -7,7 +7,6 @@ from ..command_service import CommandExecutionPlan, GatewayCommandService
 from ..errors import ErrorCode, FailureClass
 from ..lifespan import context_from_request
 from ..models import coerce_system_state_aliases, wrap_response
-from ..schemas import SetModeRequest
 from ..security import validate_command_policy
 
 router = APIRouter()
@@ -42,7 +41,7 @@ async def post_system_home(request: Request):
     request_id = request_id_from_request(request)
     command = GatewayCommandService(request, ctx=ctx)
     _enforce_system_command_policy(command, action='system.home', readiness=ctx.state.get_readiness(), policy_name='home')
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='system.home',
             required_role='operator',
@@ -51,7 +50,7 @@ async def post_system_home(request: Request):
         ),
         ctx.ros.home,
     )
-    return wrap_response(None, request_id)
+    return wrap_response(result, request_id)
 
 
 @router.post('/api/system/reset-fault')
@@ -60,7 +59,7 @@ async def post_reset_fault(request: Request):
     request_id = request_id_from_request(request)
     command = GatewayCommandService(request, ctx=ctx)
     _enforce_system_command_policy(command, action='system.reset_fault', readiness=ctx.state.get_readiness(), policy_name='resetFault')
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='system.reset_fault',
             required_role='operator',
@@ -69,7 +68,7 @@ async def post_reset_fault(request: Request):
         ),
         ctx.ros.reset_fault,
     )
-    return wrap_response(None, request_id)
+    return wrap_response(result, request_id)
 
 
 @router.post('/api/system/recover')
@@ -78,7 +77,7 @@ async def post_recover(request: Request):
     request_id = request_id_from_request(request)
     command = GatewayCommandService(request, ctx=ctx)
     _enforce_system_command_policy(command, action='system.recover', readiness=ctx.state.get_readiness(), policy_name='recover')
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='system.recover',
             required_role='operator',
@@ -87,7 +86,7 @@ async def post_recover(request: Request):
         ),
         ctx.ros.recover,
     )
-    return wrap_response(None, request_id)
+    return wrap_response(result, request_id)
 
 
 @router.post('/api/system/emergency-stop')
@@ -107,7 +106,7 @@ async def post_estop(request: Request):
         effective_ctx.state.set_system(coerce_system_state_aliases(system))
         return None
 
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='system.emergency_stop',
             required_role='operator',
@@ -118,29 +117,5 @@ async def post_estop(request: Request):
         ),
         ctx.ros.emergency_stop,
     )
-    return wrap_response(None, request_id)
+    return wrap_response(result, request_id)
 
-
-@router.post('/api/hardware/set-mode')
-async def post_set_mode(body: SetModeRequest, request: Request):
-    ctx = context_from_request(request)
-    request_id = request_id_from_request(request)
-
-    def mutate_mode(effective_ctx, _result):
-        effective_ctx.state.set_controller_mode(body.mode)
-        return None
-
-    command = GatewayCommandService(request, ctx=ctx)
-    await command.execute(
-        CommandExecutionPlan(
-            action='hardware.set_mode',
-            payload=body.model_dump(),
-            required_role='operator' if body.mode in {'idle', 'task'} else 'maintainer',
-            log_module='gateway.system',
-            success_message='mode updated',
-            runtime_topics=('system',),
-            state_mutator=mutate_mode,
-        ),
-        lambda: ctx.ros.set_mode(mode=body.mode),
-    )
-    return wrap_response(None, request_id)

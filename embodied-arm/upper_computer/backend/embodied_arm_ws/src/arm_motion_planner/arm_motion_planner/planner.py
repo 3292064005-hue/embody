@@ -227,6 +227,48 @@ class MotionPlanner:
                 return dict(arm_target)
         return self._trajectory_waypoint_joint_points(trajectory)
 
+    def _build_planning_artifact(self, *, request: dict[str, Any], result: PlanResult) -> dict[str, Any]:
+        """Build a stable planning artifact consumed by executor/runtime layers.
+
+        Args:
+            request: Normalized planning request generated from a stage plan.
+            result: Normalized runtime planning result.
+
+        Returns:
+            dict[str, Any]: Serializable planning artifact containing request,
+                planner, scene, trajectory, and execution-target metadata.
+
+        Raises:
+            Does not raise. Missing optional fields degrade to explicit empty
+            values so downstream transport layers can reason about capability
+            and provenance without depending on planner implementation details.
+        """
+        execution_target = self._plan_result_to_execution_target(result)
+        trajectory = dict(result.trajectory or {})
+        return {
+            'artifactVersion': 1,
+            'stageName': str(request.get('stageName', '')),
+            'stageKind': str(request.get('stageKind', '')),
+            'requestKind': str(request.get('requestKind', '')),
+            'request': dict(request),
+            'planner': {
+                'backendName': str(result.backend_name or ''),
+                'capabilityMode': str(result.capability_mode or ''),
+                'authoritative': bool(result.authoritative),
+                'plannerPlugin': str(result.planner_plugin or ''),
+                'planningTimeSec': float(result.planning_time_sec or 0.0),
+            },
+            'scene': {
+                'sceneSource': str(result.scene_source or ''),
+                'sceneSnapshotId': str(request.get('sceneSnapshotId', '')),
+                'sceneProviderMode': str(request.get('sceneProviderMode', 'unknown')),
+                'sceneProviderAuthoritative': bool(request.get('sceneProviderAuthoritative', False)),
+            },
+            'trajectory': trajectory,
+            'executionTarget': dict(execution_target or {}),
+            'metadata': dict(result.metadata or {}),
+        }
+
     def attach_runtime_execution_targets(self, plan: list[StagePlan]) -> list[StagePlan]:
         requests = self.compile_to_planning_requests(plan)
         planning_results = self.runtime_plan_results(plan)
@@ -243,9 +285,11 @@ class MotionPlanner:
             result_index += 1
             if not result.accepted or not result.success:
                 raise PlanningFailedError(result.error_message or f'runtime planning failed for stage {stage.name}')
-            payload['planningTrajectory'] = dict(result.trajectory or {})
-            execution_target = self._plan_result_to_execution_target(result)
-            if execution_target is not None:
+            artifact = self._build_planning_artifact(request=request, result=result)
+            payload['planningArtifact'] = artifact
+            payload['planningTrajectory'] = dict(artifact.get('trajectory') or {})
+            execution_target = dict(artifact.get('executionTarget') or {})
+            if execution_target:
                 payload['executionTarget'] = execution_target
             enriched.append(StagePlan(stage.name, stage.kind, payload))
         return enriched
@@ -255,6 +299,9 @@ class MotionPlanner:
         stage_timeouts = [float(stage.payload.get('timeoutSec', 0.0)) for stage in plan]
         first_scene = next((dict(stage.payload.get('sceneSnapshot') or {}) for stage in plan if stage.payload.get('sceneSnapshot')), {})
         first_candidate = next((dict(stage.payload.get('graspCandidate') or {}) for stage in plan if stage.payload.get('graspCandidate')), {})
+        planning_artifacts = [dict(stage.payload.get('planningArtifact') or {}) for stage in plan if isinstance(stage.payload.get('planningArtifact'), dict)]
+        planner_backends = sorted({str(item.get('planner', {}).get('backendName', '')) for item in planning_artifacts if str(item.get('planner', {}).get('backendName', ''))})
+        planner_capabilities = sorted({str(item.get('planner', {}).get('capabilityMode', '')) for item in planning_artifacts if str(item.get('planner', {}).get('capabilityMode', ''))})
         return {
             'stageNames': [stage.name for stage in plan],
             'stageCount': len(plan),
@@ -267,6 +314,9 @@ class MotionPlanner:
             'sceneProviderMode': str(first_scene.get('providerMode', 'unknown')),
             'graspCandidateCount': len(first_candidate) and 1 or 0,
             'selectedCandidateId': first_candidate.get('candidate_id') or '',
+            'planningArtifactCount': len(planning_artifacts),
+            'plannerBackends': planner_backends,
+            'plannerCapabilities': planner_capabilities,
         }
 
     def build_servo_command(self, axis: str, delta: float) -> CartesianJogCommand:

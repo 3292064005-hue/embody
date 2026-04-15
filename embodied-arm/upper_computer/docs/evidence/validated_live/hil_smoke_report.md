@@ -4,5 +4,4 @@
 - Reason: sandbox delivery does not include target-runtime HIL execution.
 - Required for promotion marker: `hil_gate_passed`
 
-To promote `validated_live`, replace this placeholder with the real target-runtime smoke
-report, update the evidence manifest status to `passed`, and keep the artifact path stable.
+This artifact is intentionally checked in as a stable evidence ledger path for validated-live promotion. Attach the real target-runtime smoke report, then update the evidence manifest status to `passed` while keeping the artifact path stable.

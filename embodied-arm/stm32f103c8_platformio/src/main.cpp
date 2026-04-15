@@ -89,6 +89,26 @@ void scheduleStateReport(uint8_t sequence, uint32_t delay_ms) {
   queueReport(HardwareCommand::REPORT_STATE, sequence, jsonString(doc), delay_ms);
 }
 
+bool protocolSimulatorStrongSuccess() {
+  return false;
+}
+
+void applyProtocolSimulatorTerminalState(const String& token) {
+  state.transport_state = "completed";
+  state.transport_result = "accepted";
+  if (protocolSimulatorStrongSuccess()) {
+    state.actuation_state = "succeeded";
+    state.actuation_result = token;
+    state.execution_state = state.actuation_state;
+    state.result_code = state.actuation_result;
+    return;
+  }
+  state.actuation_state = "simulated";
+  state.actuation_result = String("protocol_") + token + "_simulated";
+  state.execution_state = state.actuation_state;
+  state.result_code = state.actuation_result;
+}
+
 void scheduleFaultReport(uint8_t sequence, const char* message, uint32_t delay_ms) {
   StaticJsonDocument<224> doc;
   doc["hardware_fault_code"] = state.hardware_fault_code;
@@ -206,12 +226,7 @@ void applyExecStage(const JsonDocument& payload) {
   state.joint_position[3] = yaw;
   state.motion_busy = false;
   state.last_result = "done";
-  state.transport_state = "completed";
-  state.transport_result = "accepted";
-  state.actuation_state = "succeeded";
-  state.actuation_result = "stage_completed";
-  state.result_code = state.actuation_result;
-  state.execution_state = state.actuation_state;
+  applyProtocolSimulatorTerminalState("stage_completed");
 }
 
 void applyJogJoint(const JsonDocument& payload) {
@@ -223,12 +238,7 @@ void applyJogJoint(const JsonDocument& payload) {
   state.joint_velocity[joint_index] = fabsf(step_rad);
   state.motion_busy = false;
   state.last_result = "jogged";
-  state.transport_state = "completed";
-  state.transport_result = "accepted";
-  state.actuation_state = "succeeded";
-  state.actuation_result = "joint_jogged";
-  state.result_code = state.actuation_result;
-  state.execution_state = state.actuation_state;
+  applyProtocolSimulatorTerminalState("joint_jogged");
 }
 
 void applyServoCartesian(const JsonDocument& payload) {
@@ -243,12 +253,34 @@ void applyServoCartesian(const JsonDocument& payload) {
   state.joint_velocity[joint_index] = fabsf(delta);
   state.motion_busy = false;
   state.last_result = String("servo_") + axis;
-  state.transport_state = "completed";
-  state.transport_result = "accepted";
-  state.actuation_state = "succeeded";
-  state.actuation_result = String("servo_") + axis;
-  state.result_code = state.actuation_result;
-  state.execution_state = state.actuation_state;
+  applyProtocolSimulatorTerminalState(String("servo_") + axis);
+}
+
+/**
+ * Apply one ros2_control-style joint target payload to the board state.
+ *
+ * Inputs:
+ *   payload["joint_positions"]: ordered arm-joint positions.
+ *   payload["gripper_position"]: optional gripper position hint.
+ *
+ * Boundary behavior:
+ *   Missing joints keep the previous state. The simulator publishes one
+ *   terminal state so dispatcher/HIL loops can observe that the command was
+ *   consumed by the firmware transport path.
+ */
+void applyJointPositions(const JsonDocument& payload) {
+  const JsonArrayConst joint_positions = payload["joint_positions"].as<JsonArrayConst>();
+  const float gripper_position = getFloat(payload["gripper_position"], state.gripper_open ? 0.04f : 0.0f);
+  for (uint8_t i = 0; i < kJointCount; ++i) {
+    const float next = i < joint_positions.size() ? joint_positions[i].as<float>() : state.joint_position[i];
+    state.joint_velocity[i] = fabsf(next - state.joint_position[i]);
+    state.joint_position[i] = next;
+  }
+  state.gripper_open = gripper_position >= 0.02f;
+  state.gripper_ok = true;
+  state.motion_busy = false;
+  state.last_result = "joint_targets_applied";
+  applyProtocolSimulatorTerminalState("joint_positions_applied");
 }
 
 void updateSafetyPins() {
@@ -313,12 +345,7 @@ void processCommand(const FrameView& frame) {
     case HardwareCommand::HEARTBEAT:
       sendAck(frame.sequence, static_cast<uint8_t>(frame.command));
       state.last_result = "heartbeat";
-      state.transport_state = "completed";
-      state.transport_result = "accepted";
-      state.actuation_state = "succeeded";
-      state.actuation_result = "heartbeat";
-      state.result_code = state.actuation_result;
-      state.execution_state = state.actuation_state;
+      applyProtocolSimulatorTerminalState("heartbeat");
       scheduleStateReport(frame.sequence, 10);
       return;
     case HardwareCommand::HOME:
@@ -327,12 +354,7 @@ void processCommand(const FrameView& frame) {
       state.motion_busy = false;
       for (uint8_t i = 0; i < kJointCount; ++i) state.joint_position[i] = 0.0f;
       state.last_result = "home_ok";
-      state.transport_state = "completed";
-      state.transport_result = "accepted";
-      state.actuation_state = "succeeded";
-      state.actuation_result = "homed";
-      state.result_code = state.actuation_result;
-      state.execution_state = state.actuation_state;
+      applyProtocolSimulatorTerminalState("homed");
       scheduleStateReport(frame.sequence, 120);
       return;
     case HardwareCommand::STOP:
@@ -353,12 +375,7 @@ void processCommand(const FrameView& frame) {
       state.gripper_open = true;
       state.motion_busy = false;
       state.last_result = "opened";
-      state.transport_state = "completed";
-      state.transport_result = "accepted";
-      state.actuation_state = "succeeded";
-      state.actuation_result = "gripper_open";
-      state.result_code = state.actuation_result;
-      state.execution_state = state.actuation_state;
+      applyProtocolSimulatorTerminalState("gripper_open");
       scheduleStateReport(frame.sequence, 60);
       return;
     case HardwareCommand::CLOSE_GRIPPER:
@@ -367,12 +384,7 @@ void processCommand(const FrameView& frame) {
       state.gripper_open = false;
       state.motion_busy = false;
       state.last_result = "closed";
-      state.transport_state = "completed";
-      state.transport_result = "accepted";
-      state.actuation_state = "succeeded";
-      state.actuation_result = "gripper_closed";
-      state.result_code = state.actuation_result;
-      state.execution_state = state.actuation_state;
+      applyProtocolSimulatorTerminalState("gripper_closed");
       scheduleStateReport(frame.sequence, 60);
       return;
     case HardwareCommand::EXEC_STAGE:
@@ -390,12 +402,7 @@ void processCommand(const FrameView& frame) {
     case HardwareCommand::QUERY_STATE:
       sendAck(frame.sequence, static_cast<uint8_t>(frame.command));
       state.last_result = "state";
-      state.transport_state = "completed";
-      state.transport_result = "accepted";
-      state.actuation_state = "succeeded";
-      state.actuation_result = "state_snapshot";
-      state.result_code = state.actuation_result;
-      state.execution_state = state.actuation_state;
+      applyProtocolSimulatorTerminalState("state_snapshot");
       scheduleStateReport(frame.sequence, 10);
       return;
     case HardwareCommand::RESET_FAULT:
@@ -410,15 +417,12 @@ void processCommand(const FrameView& frame) {
         applyJogJoint(payload);
       } else if (kind == "SERVO_CARTESIAN") {
         applyServoCartesian(payload);
+      } else if (payload["joint_positions"].is<JsonArrayConst>()) {
+        applyJointPositions(payload);
       } else {
         state.motion_busy = false;
         state.last_result = "set_joints";
-        state.transport_state = "completed";
-        state.transport_result = "accepted";
-        state.actuation_state = "succeeded";
-        state.actuation_result = "joint_positions_applied";
-        state.result_code = state.actuation_result;
-        state.execution_state = state.actuation_state;
+        applyProtocolSimulatorTerminalState("joint_positions_applied");
       }
       scheduleStateReport(frame.sequence, 40);
       return;

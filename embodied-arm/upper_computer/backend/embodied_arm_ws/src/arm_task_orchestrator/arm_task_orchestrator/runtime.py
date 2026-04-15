@@ -14,6 +14,7 @@ from arm_task_orchestrator.execution_adapter import AwaitingCommand, ExecutionAd
 from arm_task_orchestrator.fault_manager import FaultManager
 from arm_task_orchestrator.orchestrator import OrchestratorDecision
 from arm_task_orchestrator.state_machine import SystemStateMachine
+from arm_task_orchestrator.task_plugins import resolve_task_runtime_plugin
 from arm_perception import VisionTargetTracker
 
 
@@ -102,6 +103,47 @@ class TaskRuntimeEngine:
 
     def replace_task_profile(self, task_profile: TaskProfile) -> None:
         self._state.task_profile = task_profile
+
+    def _active_plugin(self):
+        current = self._state.current
+        if current is None:
+            return resolve_task_runtime_plugin('')
+        return resolve_task_runtime_plugin(current.task_type, metadata=getattr(current, 'metadata', {}))
+
+    def _graph_spec(self) -> dict[str, Any]:
+        current = self._state.current
+        if current is None or not isinstance(getattr(current, 'metadata', None), dict):
+            return {}
+        graph = current.metadata.get('taskGraph')
+        return dict(graph) if isinstance(graph, dict) else {}
+
+    def _set_graph_node(self, *, node_id: str | None = None, kind: str | None = None, default_stage: str = '') -> str:
+        current = self._state.current
+        if current is None:
+            return default_stage
+        metadata = current.metadata if isinstance(current.metadata, dict) else None
+        graph = self._graph_spec()
+        stage = str(default_stage or '')
+        resolved_node = str(node_id or kind or '')
+        nodes = graph.get('nodes', []) if isinstance(graph.get('nodes'), list) else []
+        for item in nodes:
+            if not isinstance(item, dict):
+                continue
+            if node_id and str(item.get('id', '')) == str(node_id):
+                stage = str(item.get('stage', stage) or stage)
+                resolved_node = str(item.get('id', resolved_node) or resolved_node)
+                break
+            if kind and str(item.get('kind', '')) == str(kind):
+                stage = str(item.get('stage', stage) or stage)
+                resolved_node = str(item.get('id', resolved_node) or resolved_node)
+                break
+        current.stage = stage
+        if metadata is not None:
+            metadata['activeGraphNode'] = resolved_node
+            metadata['activeGraphStage'] = stage
+        if stage and (not current.stage_history or current.stage_history[-1] != stage):
+            current.stage_history.append(stage)
+        return stage
 
     def update_target(self, target: TargetSnapshot) -> None:
         self._state.latest_target = target
@@ -263,7 +305,9 @@ class TaskRuntimeEngine:
             calibration=self._state.calibration,
             correlation_id=getattr(self._state.current, 'correlation_id', ''),
             task_run_id=getattr(self._state.current, 'task_run_id', ''),
+            episode_id=getattr(self._state.current, 'episode_id', ''),
         )
+        self._set_graph_node(kind='planning', default_stage='planning')
         self._hooks.publish_planning_request(payload)
         self._hooks.emit_event('INFO', 'task_orchestrator', 'PLAN_REQUESTED', self._state.current.task_id, 0, 'planning request published', stage='plan')
 
@@ -279,7 +323,9 @@ class TaskRuntimeEngine:
             plan=list(self._state.plan),
             correlation_id=getattr(self._state.current, 'correlation_id', ''),
             task_run_id=getattr(self._state.current, 'task_run_id', ''),
+            episode_id=getattr(self._state.current, 'episode_id', ''),
         )
+        self._set_graph_node(kind='execution', default_stage='execution')
         self._hooks.publish_execution_request(payload)
         self._hooks.emit_event('INFO', 'task_orchestrator', 'EXECUTION_REQUESTED', self._state.current.task_id, 0, 'execution request published', stage='execute')
 
@@ -324,6 +370,8 @@ class TaskRuntimeEngine:
             if self._state.queue:
                 request = self._state.queue.popleft()
                 self._state.current = self._application.begin_task(request)
+                plugin = self._active_plugin()
+                self._state.current.metadata.setdefault('pluginKey', plugin.key)
                 now = time.monotonic()
                 self._state.current.verify_deadline = now + self._state.task_profile.verify_timeout_sec
                 self._state.current.perception_deadline = now + max(perception_blocked_after_sec, 0.1)
@@ -335,7 +383,7 @@ class TaskRuntimeEngine:
             return
 
         if self._state_machine.mode == SystemMode.PERCEPTION:
-            target = self._tracker.select(self._state.current.target_selector, exclude_keys=self._state.current.completed_target_ids)
+            target = self._active_plugin().select_target(self)
             if target is None:
                 now = time.monotonic()
                 if self._state.current.perception_deadline <= 0.0:
@@ -354,7 +402,9 @@ class TaskRuntimeEngine:
                 self._application.bind_target(self._state.current, target, self._state.calibration)
                 self._state_machine.perception_ok('Valid target acquired')
                 self._publish_plan_request(target=target, command_timeout_sec=command_timeout_sec)
-                return
+            return
+
+        if self._state_machine.mode == SystemMode.PLAN:
             if self._state.current.plan_deadline and time.monotonic() > self._state.current.plan_deadline:
                 self.enter_fault(FaultCode.PLAN_FAILED, detail='planning timeout')
                 return
@@ -380,7 +430,7 @@ class TaskRuntimeEngine:
             status = str(status_payload.get('status', '')).strip().lower()
             if status in {'done', 'succeeded'}:
                 transition = self._state_machine.execute_ok('Execution finished')
-                self._state.current.stage = 'verify'
+                self._set_graph_node(kind='verification', default_stage='verification')
                 self._state.current.verify_deadline = time.monotonic() + self._state.task_profile.verify_timeout_sec
                 self._hooks.emit_event('INFO', 'task_orchestrator', 'EXECUTION_FINISHED', self._state.current.task_id, 0, transition.reason, stage='verify')
                 return
@@ -394,6 +444,7 @@ class TaskRuntimeEngine:
             return
 
         if self._state_machine.mode == SystemMode.VERIFY and self._state.current is not None:
+            self._set_graph_node(kind='verification', default_stage='verification')
             result = self._application.verify_outcome(
                 self._state.current,
                 self._state.hardware,
@@ -403,7 +454,10 @@ class TaskRuntimeEngine:
             if not result.finished:
                 return
             if result.success:
+                if self._active_plugin().on_verify_success(self, result.message, perception_blocked_after_sec=perception_blocked_after_sec):
+                    return
                 self._application.complete(self._state.current, result.message)
+                self._set_graph_node(kind='terminal', default_stage='complete')
                 transition = self._state_machine.verify_ok(result.message)
                 self._hooks.emit_event('INFO', 'task_orchestrator', 'TASK_COMPLETED', self._state.current.task_id, 0, transition.reason, stage='finish')
                 self.mark_task_terminal(self._state.current.task_id, state='succeeded', result_code=0, message=transition.reason, elapsed=self._state.current.elapsed())
@@ -418,6 +472,7 @@ class TaskRuntimeEngine:
                 self._state.last_plan_result = {}
                 self._state.last_execution_status = {}
                 self._state.current.perception_deadline = time.monotonic() + max(perception_blocked_after_sec, 0.1)
+                self._set_graph_node(kind='perception', default_stage='perception')
                 self._state_machine.retry_to_perception(result.message)
                 return
             self.enter_fault(result.fault, detail=result.message)
@@ -433,6 +488,7 @@ class TaskRuntimeEngine:
 
     def enter_fault(self, code: FaultCode, detail: str | None = None) -> None:
         message = detail or fault_message(code)
+        self._set_graph_node(default_stage='fault')
         task_id = getattr(self._state.current, 'task_id', '')
         transition = self._state_machine.fault(code, message)
         self._hooks.emit_event('ERROR', 'task_orchestrator', 'FAULT', task_id, int(code), transition.reason, stage='fault', error_code=str(code.name).lower(), operator_actionable=True)

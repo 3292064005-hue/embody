@@ -179,7 +179,7 @@ def derive_release_gate_state(steps: dict[str, str], *, root: Path) -> ReleaseGa
     """
     normalized = {str(name): normalize_status(value) for name, value in steps.items()}
     repo_gate = _derive_repo_gate(normalized, root=root)
-    target_gate = gate_from_required_steps(normalized, required=('env', 'ros_build', 'ros_smoke', 'negative_path_subset'))
+    target_gate = gate_from_required_steps(normalized, required=('env', 'ros_build', 'ros_smoke', 'negative_path_subset', 'runtime_baseline'))
     hil_gate = _derive_hil_gate(root=root)
     release_checklist_gate = _derive_release_checklist_gate(normalized, root=root)
 

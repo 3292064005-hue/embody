@@ -1,9 +1,10 @@
 from arm_backend_common.data_models import CalibrationProfile, HardwareSnapshot, TargetSnapshot, TaskProfile, TaskRequest
+from arm_backend_common.enums import FaultCode
 from arm_motion_executor import MotionExecutor
 from arm_motion_planner import MotionPlanner
+from arm_perception import VisionTargetTracker
 from arm_readiness_manager import ReadinessManager
-from arm_task_orchestrator import TaskOrchestrator
-from arm_vision import VisionTargetTracker
+from arm_task_orchestrator.orchestrator import TaskOrchestrator
 
 
 def test_readiness_manager_blocks_until_all_ready():
@@ -26,6 +27,7 @@ def test_planner_executor_pipeline():
     orchestrator = TaskOrchestrator(TaskProfile(confidence_threshold=0.5))
     context = orchestrator.begin_context(request)
     target = TargetSnapshot(target_id='a', target_type='cube', semantic_label='red', table_x=0.1, table_y=0.2, confidence=0.95)
+    context = orchestrator.bind_target(context, target, calibration)
     plan = planner.build_pick_place_plan(context, target, calibration)
     result = executor.validate(plan)
     assert result.accepted
@@ -51,7 +53,7 @@ def test_orchestrator_checks_hardware_readiness_and_retry():
     decision = orchestrator.verify_hardware_ready(HardwareSnapshot(stm32_online=False))
     assert not decision.accepted
     ctx = orchestrator.begin_context(TaskRequest(task_id='t1', task_type='pick', max_retry=1, auto_retry=True))
-    retry = orchestrator.decide_retry(ctx, fault=1001, message='retry me')
+    retry = orchestrator.decide_retry(ctx, fault=FaultCode.TARGET_NOT_FOUND, message='retry me')
     assert retry.accepted
-    fail = orchestrator.decide_retry(ctx, fault=1001, message='stop now')
+    fail = orchestrator.decide_retry(ctx, fault=FaultCode.TARGET_NOT_FOUND, message='stop now')
     assert not fail.accepted

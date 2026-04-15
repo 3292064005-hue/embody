@@ -17,7 +17,7 @@ export const useLogStore = defineStore('log', {
         const requestMatched = !state.requestIdFilter || item.requestId?.includes(state.requestIdFilter);
         const correlationMatched = !state.correlationIdFilter || item.correlationId?.includes(state.correlationIdFilter);
         const taskRunMatched = !state.taskRunIdFilter || item.taskRunId?.includes(state.taskRunIdFilter);
-        const searchMatched = !state.searchText || [item.message, item.module, item.event, item.taskId, item.requestId, item.correlationId, item.taskRunId].join(' ').toLowerCase().includes(state.searchText.toLowerCase());
+        const searchMatched = !state.searchText || [item.message, item.module, item.event, item.taskId, item.requestId, item.correlationId, item.taskRunId, item.episodeId].join(' ').toLowerCase().includes(state.searchText.toLowerCase());
         return levelMatched && taskMatched && requestMatched && correlationMatched && taskRunMatched && searchMatched;
       });
     }

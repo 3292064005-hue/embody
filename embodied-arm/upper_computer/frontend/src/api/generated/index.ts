@@ -76,7 +76,10 @@ export type StartTaskRequest = {
 export type StartTaskDecision = {
   taskId: string;
   taskRunId: string;
+  episodeId: string;
   templateId: string;
+  pluginKey: string;
+  graphKey: string;
   runtimeTier: 'preview' | 'validated_sim' | 'validated_live';
   productLine: string;
 };

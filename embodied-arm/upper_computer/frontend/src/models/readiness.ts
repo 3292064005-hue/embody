@@ -1,3 +1,43 @@
+
+export interface RuntimeReleaseGates {
+  repoGate: string;
+  targetGate: string;
+  hilGate: string;
+  releaseChecklistGate: string;
+  releaseGate: string;
+  hasBlockingStep?: boolean;
+  blockingSteps?: Record<string, string>;
+}
+
+export interface RuntimePromotionReceipt {
+  promotion_mode?: string;
+  promoted: boolean;
+  receipt_id?: string;
+  checked_by?: string;
+  checked_at?: string;
+  required_evidence?: string[];
+  evidence?: string[];
+  reason?: string;
+  effective?: boolean;
+  missing_evidence?: string[];
+  auto_generated?: boolean;
+}
+
+export interface ExecutionBackboneSummary {
+  runtimeDeliveryTrack: string;
+  executionBackbone: string;
+  executionMode: string;
+  executionModeLabel?: string;
+  authoritativeTransport: boolean;
+  sequentialDispatch: boolean;
+  requestedRuntimeProfile?: string;
+  activeRuntimeLane?: string;
+  backboneLabel?: string;
+  declaredByRuntimeProfile?: boolean;
+  firmwareProfile?: string;
+  firmwareMessage?: string;
+}
+
 export interface ReadinessCheck {
   ok: boolean;
   detail: string;
@@ -50,6 +90,13 @@ export interface ReadinessState {
   authoritative?: boolean;
   runtimeTier?: 'preview' | 'validated_sim' | 'validated_live';
   productLine?: string;
+  runtimeDeliveryTrack?: string;
+  executionBackbone?: string;
+  executionBackboneSummary?: ExecutionBackboneSummary;
+  promotionReceipts?: Record<string, RuntimePromotionReceipt>;
+  releaseGates?: RuntimeReleaseGates;
+  firmwareSemanticProfile?: string;
+  firmwareSemanticMessage?: string;
   manualCommandLimits?: ManualCommandLimits;
   runtimeConfigVersion?: string;
   updatedAt?: string;

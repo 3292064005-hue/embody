@@ -37,7 +37,7 @@
 ### 3. Mock / Simulation 运行时
 - `shared/mock/runtime.ts`：前端 fixture / replay 数据层，不再作为权威业务状态机
 - `services/api/mockAdapter.ts`：仅在 `VITE_API_MOCK_MODE=fixture` 时启用的离线 fixture adapter
-- 默认本地联调以 Gateway `dev-hmi-mock` simulation 为权威真源；设置 `VITE_ENABLE_MOCK=true` 且 `VITE_API_MOCK_MODE=gateway` 时，前端仍连 Gateway，而不是旁路成前端本地状态机
+- 默认本地联调以 Gateway `dev-hmi-mock` local preview fallback 为显式非权威真源；设置 `VITE_ENABLE_MOCK=true` 且 `VITE_API_MOCK_MODE=gateway` 时，前端仍连 Gateway，而不是旁路成前端本地状态机
 - 仅 UI 脱机演示 / Playwright 预览使用 `VITE_API_MOCK_MODE=fixture`
 
 ### 4. 页面升级

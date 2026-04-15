@@ -138,3 +138,33 @@ def test_gateway_dispatcher_feedback_roundtrip_unexpected_servo_axis_falls_back_
         assert joints
         if baseline:
             assert float(joints[0]) != float(baseline[0])
+
+
+def test_gateway_dispatcher_feedback_roundtrip_set_joints_joint_stream_updates_gateway_hardware_state() -> None:
+    with _RosRuntimeHarness() as harness:
+        harness.gateway.publish_hardware_command({
+            'kind': 'SET_JOINTS',
+            'task_id': 'pytest-set-joints',
+            'producer': 'ros2_control_backbone',
+            'command_plane': 'joint_stream',
+            'joint_names': ['joint_1', 'joint_2'],
+            'joint_positions': [0.15, -0.05],
+            'gripper_position': 0.04,
+            'timeout_sec': 0.4,
+        })
+
+        def _roundtrip_complete() -> bool:
+            hardware = harness.state.get_hardware()
+            raw = hardware.get('rawStatus') or {}
+            dispatcher = raw.get('dispatcher') or {}
+            joints = hardware.get('joints') or []
+            return bool(
+                raw.get('last_kind') == 'SET_JOINTS'
+                and dispatcher.get('ack', 0) >= 1
+                and dispatcher.get('done', 0) >= 1
+                and len(joints) >= 2
+                and abs(float(joints[0]) - 0.15) < 1e-6
+                and abs(float(joints[1]) + 0.05) < 1e-6
+            )
+
+        assert _wait_for(_roundtrip_complete), harness.state.get_hardware()

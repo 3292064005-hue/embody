@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import configparser
 import json
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,11 +44,20 @@ def load_launch_package_taxonomy() -> tuple[set[str], set[str], set[str], set[st
     return core, supervision, compat, experimental
 
 
+def load_launch_workspace_support_packages() -> set[str]:
+    tree = ast.parse(LAUNCH_FACTORY.read_text(encoding='utf-8'))
+    try:
+        return set(_literal_assignment(tree, 'RUNTIME_SUPPORT_PACKAGES'))
+    except KeyError:
+        return set()
+
+
 def _parse_launch_packages() -> tuple[set[str], set[str], set[str], set[str]]:
     return load_launch_package_taxonomy()
 
 
 RUNTIME_CORE_PACKAGES, RUNTIME_SUPERVISION_PACKAGES, DEPRECATED_PACKAGES, EXPERIMENTAL_PACKAGES = load_launch_package_taxonomy()
+RUNTIME_SUPPORT_PACKAGES = load_launch_workspace_support_packages()
 
 
 def _ignored_tests() -> set[str]:
@@ -83,6 +93,15 @@ def _validate_quarantine_manifest() -> list[str]:
         for field in ('owner', 'category', 'reason', 'expires'):
             if not str(entry.get(field, '') or '').strip():
                 issues.append(f'quarantine entry missing {field}: {path or entry!r}')
+        expires = str(entry.get('expires', '') or '').strip()
+        if expires:
+            try:
+                expiry = date.fromisoformat(expires)
+            except ValueError:
+                issues.append(f'quarantine entry has invalid expires date: {path or entry!r}')
+            else:
+                if expiry < date.today():
+                    issues.append(f'quarantine entry expired and must be removed: {path}')
     missing_from_manifest = sorted(ignored - manifest_names)
     missing_from_pytest = sorted(manifest_names - ignored)
     for name in missing_from_manifest:

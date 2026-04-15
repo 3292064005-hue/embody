@@ -187,7 +187,7 @@ class FixtureReplayRuntime {
     return clone(this.diagnosticsSnapshot());
   }
 
-  homeRobot(): null {
+  homeRobot() {
     this.system = this.systemSnapshot();
     this.system.runtimePhase = 'idle';
     this.system.taskStage = 'done';
@@ -195,20 +195,20 @@ class FixtureReplayRuntime {
     this.hardware = { ...clone(this.hardware), homed: true, busy: false };
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'system.home', message: 'Fixture replay: home acknowledged' });
     this.pushAudit('system.home', 'success', 'Fixture replay: home acknowledged');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: home acknowledged', mode: this.system.controllerMode || 'idle' };
   }
 
-  resetFault(): null {
+  resetFault() {
     this.system = this.systemSnapshot();
     this.system.emergencyStop = false;
     this.system.runtimePhase = 'idle';
     this.system.taskStage = 'done';
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'system.reset_fault', message: 'Fixture replay: reset fault acknowledged' });
     this.pushAudit('system.reset_fault', 'success', 'Fixture replay: reset fault acknowledged');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: reset fault acknowledged', mode: this.system.controllerMode || 'idle' };
   }
 
-  emergencyStop(): null {
+  emergencyStop() {
     this.system = this.systemSnapshot();
     this.system.emergencyStop = true;
     this.system.runtimePhase = 'safe_stop';
@@ -217,18 +217,18 @@ class FixtureReplayRuntime {
     this.hardware = { ...clone(this.hardware), busy: false };
     this.pushLog({ level: 'fault', module: 'mock.fixture', event: 'system.emergency_stop', message: 'Fixture replay: emergency stop asserted' });
     this.pushAudit('system.emergency_stop', 'accepted', 'Fixture replay: emergency stop asserted');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: emergency stop asserted', mode: this.system.controllerMode || 'maintenance' };
   }
 
 
-  recoverRuntime(): null {
+  recoverRuntime() {
     this.system = this.systemSnapshot();
     this.system.emergencyStop = false;
     this.system.runtimePhase = 'idle';
     this.system.taskStage = 'done';
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'system.recover', message: 'Fixture replay: runtime recover acknowledged' });
     this.pushAudit('system.recover', 'success', 'Fixture replay: runtime recover acknowledged');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: runtime recover acknowledged', mode: this.system.controllerMode || 'idle' };
   }
 
   getCurrentTask(): TaskProgress | null {
@@ -272,7 +272,7 @@ class FixtureReplayRuntime {
     };
   }
 
-  stopTask(): null {
+  stopTask() {
     if (this.currentTask) {
       this.currentTask = { ...clone(this.currentTask), stage: 'failed', updatedAt: new Date().toISOString(), lastMessage: 'Fixture replay stopped task record' };
     }
@@ -282,7 +282,7 @@ class FixtureReplayRuntime {
     this.setControllerModeInternal('maintenance');
     this.pushLog({ level: 'warn', module: 'mock.fixture', event: 'task.stop', message: 'Fixture replay: stop task acknowledged' });
     this.pushAudit('task.stop', 'accepted', 'Fixture replay: stop task acknowledged');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: stop task acknowledged', mode: this.system.controllerMode || 'maintenance' };
   }
 
   getTargets(): VisionTarget[] { return clone(mockTargets); }
@@ -290,7 +290,7 @@ class FixtureReplayRuntime {
   getCalibrationProfile(): CalibrationProfile { return clone(this.calibration); }
   getCalibrationVersions(): CalibrationProfileVersion[] { return clone(this.calibrationVersions); }
 
-  saveCalibrationProfile(payload: Record<string, unknown>): null {
+  saveCalibrationProfile(payload: Record<string, unknown>) {
     const profile = payload as unknown as CalibrationProfile;
     this.calibration = { ...clone(profile), updatedAt: new Date().toISOString() };
     const nextVersion: CalibrationProfileVersion = {
@@ -305,10 +305,10 @@ class FixtureReplayRuntime {
     this.calibrationVersions = [nextVersion, ...this.calibrationVersions.map((item) => ({ ...item, active: false }))].slice(0, 10);
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'calibration.save', message: 'Fixture replay: calibration saved locally' });
     this.pushAudit('calibration.save', 'success', 'Fixture replay: calibration saved locally');
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: calibration saved locally', mode: this.system.controllerMode || 'idle' };
   }
 
-  activateCalibrationProfile(profileId: string): null {
+  activateCalibrationProfile(profileId: string) {
     this.calibrationVersions = this.calibrationVersions.map((item) => ({ ...item, active: item.id === profileId }));
     const active = this.calibrationVersions.find((item) => item.id === profileId);
     if (active) {
@@ -322,19 +322,19 @@ class FixtureReplayRuntime {
     }
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'calibration.activate', message: `Fixture replay: calibration ${profileId} activated` });
     this.pushAudit('calibration.activate', 'success', `Fixture replay: calibration ${profileId} activated`);
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: calibration profile activated', mode: this.system.controllerMode || 'idle' };
   }
 
   getHardwareState(): HardwareState { return clone(this.hardware); }
 
-  commandGripper(open: boolean): null {
+  commandGripper(open: boolean): Record<string, unknown> {
     this.hardware = { ...clone(this.hardware), gripperOpen: open };
     this.pushLog({ level: 'info', module: 'mock.fixture', event: open ? 'gripper.open' : 'gripper.close', message: `Fixture replay: gripper ${open ? 'open' : 'close'}` });
     this.pushAudit('hardware.gripper', 'success', `Fixture replay: gripper ${open ? 'open' : 'close'}`, { open });
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: gripper command recorded' };
   }
 
-  jogJoint(jointIndex: number, direction: -1 | 1, stepDeg: number): null {
+  jogJoint(jointIndex: number, direction: -1 | 1, stepDeg: number): Record<string, unknown> {
     const joints = [...this.hardware.joints];
     if (jointIndex >= 0 && jointIndex < joints.length) {
       joints[jointIndex] = Number((joints[jointIndex] + direction * (stepDeg * Math.PI / 180)).toFixed(4));
@@ -342,10 +342,10 @@ class FixtureReplayRuntime {
     }
     this.pushLog({ level: 'warn', module: 'mock.fixture', event: 'joint.jog', message: `Fixture replay: J${jointIndex + 1} jog ${stepDeg}°` });
     this.pushAudit('hardware.jog_joint', 'success', 'Fixture replay: joint jog recorded', { jointIndex, direction, stepDeg });
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: joint jog recorded' };
   }
 
-  servoCartesian(axis: string, delta: number): null {
+  servoCartesian(axis: string, delta: number): Record<string, unknown> {
     this.hardware = {
       ...clone(this.hardware),
       poseName: `fixture_servo_${axis}`,
@@ -353,15 +353,15 @@ class FixtureReplayRuntime {
     };
     this.pushLog({ level: 'warn', module: 'mock.fixture', event: 'servo.cartesian', message: `Fixture replay: servo ${axis} delta=${delta}` });
     this.pushAudit('hardware.servo_cartesian', 'success', 'Fixture replay: cartesian servo recorded', { axis, delta });
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: cartesian servo recorded' };
   }
 
-  setControllerMode(mode: string): null {
+  setControllerMode(mode: string): Record<string, unknown> {
     const normalized = (['idle', 'manual', 'task', 'maintenance'].includes(mode) ? mode : 'idle') as ControllerMode;
     this.setControllerModeInternal(normalized);
     this.pushLog({ level: 'info', module: 'mock.fixture', event: 'controller.mode', message: `Fixture replay: controller mode ${normalized}` });
     this.pushAudit('hardware.set_mode', 'accepted', `Fixture replay: controller mode ${normalized}`, { mode: normalized });
-    return null;
+    return { success: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: `Fixture replay: controller mode ${normalized}`, mode: normalized };
   }
 
   getLogs(): LogEvent[] { return clone(this.logs); }

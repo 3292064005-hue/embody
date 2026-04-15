@@ -17,3 +17,22 @@ def test_validated_live_backend_reports_not_ready_by_default() -> None:
 def test_validated_sim_backend_reports_ready() -> None:
     client = MoveItClient(capability_mode='validated_sim', authoritative=True, backend_name='validated_sim_runtime')
     assert client.planning_backend_ready() is True
+
+
+
+def test_validated_live_resolved_backend_reports_ready() -> None:
+    from arm_motion_planner.backend_factory import resolve_planning_backend
+
+    resolved = resolve_planning_backend(
+        capability_mode='validated_live',
+        backend_name='validated_live_bridge',
+        backend_profile='validated_live_bridge',
+    )
+    assert resolved.backend is not None
+    client = MoveItClient(
+        capability_mode='validated_live',
+        authoritative=True,
+        backend_name='validated_live_bridge',
+        planning_backend=resolved.backend,
+    )
+    assert client.planning_backend_ready() is True

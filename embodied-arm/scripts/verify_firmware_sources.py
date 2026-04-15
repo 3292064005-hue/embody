@@ -7,6 +7,8 @@ import configparser
 import json
 import re
 import sys
+
+import yaml
 from pathlib import Path
 from typing import Iterable
 
@@ -14,6 +16,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 ARTIFACT_DIR = ROOT_DIR / 'artifacts' / 'split_repository_validation'
 ARTIFACT_PATH = ARTIFACT_DIR / 'firmware_source_validation.json'
 ESP32_DIR = ROOT_DIR / 'esp32s3_platformio'
+FIRMWARE_SEMANTIC_PROFILES = ROOT_DIR / 'upper_computer' / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_bringup' / 'config' / 'firmware_semantic_profiles.yaml'
 STM32_DIR = ROOT_DIR / 'stm32f103c8_platformio'
 PY_ENUMS = ROOT_DIR / 'upper_computer' / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_backend_common' / 'arm_backend_common' / 'enums.py'
 SERIAL_DOC = ROOT_DIR / 'upper_computer' / 'docs' / 'SERIAL_PROTOCOL.md'
@@ -22,6 +25,23 @@ FIRMWARE_INTEGRATION_DOC = ROOT_DIR / 'upper_computer' / 'docs' / 'FIRMWARE_SPLI
 
 class ValidationError(RuntimeError):
     """Raised when the firmware source contract is inconsistent."""
+
+
+def _validate_esp32_semantic_contract() -> dict[str, object]:
+    project_config = _read(ESP32_DIR / 'include' / 'project_config.hpp')
+    generated_header = _read(ESP32_DIR / 'include' / 'generated' / 'runtime_semantic_profile.hpp')
+    platformio_ini = _read(ESP32_DIR / 'platformio.ini')
+    semantic_payload = yaml.safe_load(_read(FIRMWARE_SEMANTIC_PROFILES)) or {}
+    esp32_payload = semantic_payload.get('esp32', {}) if isinstance(semantic_payload, dict) else {}
+    default_profile = str(esp32_payload.get('default_profile', '') or '').strip()
+    profiles = esp32_payload.get('profiles', {}) if isinstance(esp32_payload.get('profiles'), dict) else {}
+    _require(default_profile in profiles, 'firmware_semantic_profiles.yaml default_profile must reference one declared profile')
+    _require('#include "generated/runtime_semantic_profile.hpp"' in project_config, 'ESP32 project_config.hpp must include generated/runtime_semantic_profile.hpp')
+    _require('EMBODIED_ARM_DEFAULT_STREAM_SEMANTIC' in project_config, 'ESP32 project_config.hpp must consume generated semantic defaults')
+    macro_name = f'EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_{default_profile.upper()}'
+    _require(macro_name in generated_header, f'generated runtime semantic header missing macro {macro_name}')
+    _require(f'-DEMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE={macro_name}' in platformio_ini, 'platformio.ini must pin the default runtime semantic profile macro')
+    return {'defaultProfile': default_profile, 'profileCount': len(profiles), 'macro': macro_name}
 
 
 def _read(path: Path) -> str:
@@ -135,6 +155,7 @@ def main() -> int:
             'requiredFiles': _validate_required_files(ESP32_DIR, ['platformio.ini', 'src/main.cpp', 'include/board_state.hpp', 'include/project_config.hpp', 'partitions/esp32s3_n16r8_littlefs.csv']),
             'platformio': _validate_platformio_project(ESP32_DIR, 'env:esp32s3_n16r8', {'platform': 'espressif32', 'board': 'esp32s3_n16r8', 'framework': 'arduino'}),
             'routes': _validate_esp32_routes(),
+            'semanticContract': _validate_esp32_semantic_contract(),
         },
         'stm32': {
             'requiredFiles': _validate_required_files(STM32_DIR, ['platformio.ini', 'src/main.cpp', 'src/protocol.cpp', 'include/protocol.hpp', 'include/state.hpp', 'include/project_config.hpp']),

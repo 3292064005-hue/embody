@@ -66,13 +66,13 @@ COMMAND_REQUIRED_BY_NAME = {
 
 COMMAND_ALLOWED_MODES = {
     'startTask': ('idle', 'task'),
-    'stopTask': ('task', 'manual', 'maintenance', 'safe_stop', 'fault', 'simulated_local_only'),
-    'jog': ('manual', 'maintenance', 'simulated_local_only'),
-    'servoCartesian': ('manual', 'maintenance', 'simulated_local_only'),
-    'gripper': ('manual', 'maintenance', 'simulated_local_only'),
-    'home': ('idle', 'manual', 'maintenance', 'task', 'fault', 'simulated_local_only'),
-    'resetFault': ('fault', 'safe_stop', 'simulated_local_only'),
-    'recover': ('idle', 'maintenance', 'fault', 'safe_stop', 'simulated_local_only'),
+    'stopTask': ('task', 'manual', 'maintenance', 'safe_stop', 'fault'),
+    'jog': ('manual', 'maintenance'),
+    'servoCartesian': ('manual', 'maintenance'),
+    'gripper': ('manual', 'maintenance'),
+    'home': ('idle', 'manual', 'maintenance', 'task', 'fault'),
+    'resetFault': ('fault', 'safe_stop'),
+    'recover': ('idle', 'maintenance', 'fault', 'safe_stop'),
 }
 
 RUNTIME_HEALTH_REQUIRED = (
@@ -103,6 +103,13 @@ PUBLIC_READINESS_FIELDS = (
     'simulated',
     'runtimeTier',
     'productLine',
+    'runtimeDeliveryTrack',
+    'executionBackbone',
+    'executionBackboneSummary',
+    'promotionReceipts',
+    'releaseGates',
+    'firmwareSemanticProfile',
+    'firmwareSemanticMessage',
     'manualCommandLimits',
     'runtimeConfigVersion',
     'source',
@@ -181,23 +188,6 @@ def command_policy(allowed: bool, reason: str) -> dict[str, Any]:
 def bootstrap_command_policies(reason: str = 'waiting for authoritative readiness snapshot') -> dict[str, dict[str, Any]]:
     """Return fail-closed bootstrap policies for all public commands."""
     return {name: command_policy(False, reason) for name in PUBLIC_COMMAND_NAMES}
-
-
-def simulated_local_only_command_policies() -> dict[str, dict[str, Any]]:
-    """Return explicit dev-only policies for the simulated-local-only profile."""
-    simulated_reason = 'dev-hmi-mock simulated runtime'
-    policies = {name: command_policy(False, simulated_reason) for name in PUBLIC_COMMAND_NAMES}
-    policies.update({
-        'startTask': command_policy(False, 'task execution requires authoritative ROS runtime readiness'),
-        'stopTask': command_policy(True, simulated_reason),
-        'jog': command_policy(True, simulated_reason),
-        'servoCartesian': command_policy(True, simulated_reason),
-        'gripper': command_policy(True, simulated_reason),
-        'home': command_policy(True, simulated_reason),
-        'resetFault': command_policy(True, simulated_reason),
-        'recover': command_policy(True, simulated_reason),
-    })
-    return policies
 
 
 def build_command_summary(command_policies: dict[str, dict[str, Any]]) -> dict[str, Any]:

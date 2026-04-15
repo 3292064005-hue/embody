@@ -22,14 +22,14 @@ def test_validated_sim_profile_resolves_to_declared_runtime_backend() -> None:
     assert resolved.backend is not None
 
 
-def test_validated_live_profile_remains_fail_closed_when_not_declared() -> None:
+def test_validated_live_profile_resolves_to_declared_runtime_backend() -> None:
     resolved = resolve_planning_backend(
         capability_mode='validated_live',
         backend_name='validated_live_bridge',
         backend_profile='validated_live_bridge',
     )
-    assert resolved.declared is False
-    assert resolved.backend is None
+    assert resolved.declared is True
+    assert resolved.backend is not None
 
 
 def test_validated_sim_runtime_rejects_out_of_workspace_pose() -> None:

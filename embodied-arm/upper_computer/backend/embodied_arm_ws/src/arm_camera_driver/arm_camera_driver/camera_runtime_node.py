@@ -127,6 +127,31 @@ class CameraRuntimeNode(ManagedLifecycleNode):
         frame_payload = payload.get('payload')
         if frame_payload is None:
             raise ValueError('external frame payload missing payload field')
+        if not isinstance(frame_payload, dict):
+            frame_payload = {'kind': 'legacy_payload', 'payload': frame_payload}
+        provenance = dict(frame_payload.get('visualProvenance') or {}) if isinstance(frame_payload.get('visualProvenance'), dict) else {}
+        source_class = str(frame_payload.get('sourceClass', provenance.get('sourceClass', 'external_topic')) or 'external_topic')
+        raw_detections = frame_payload.get('detections') or frame_payload.get('externalDetections') or frame_payload.get('targetDetections') or []
+        default_detection_mode = 'external_detections' if isinstance(raw_detections, list) and raw_detections else 'external_topic_required'
+        detection_source_mode = str(frame_payload.get('detectionSourceMode', provenance.get('detectionSourceMode', default_detection_mode)) or default_detection_mode)
+        authoritative_target_source = str(frame_payload.get('authoritativeTargetSource', provenance.get('authoritativeTargetSource', detection_source_mode)) or detection_source_mode)
+        renderable_preview = bool(frame_payload.get('renderablePreview', provenance.get('renderablePreview', False)))
+        camera_live = bool(frame_payload.get('cameraLive', provenance.get('cameraLive', source_class in {'live', 'external_topic'})))
+        frame_ingress_live = bool(frame_payload.get('frameIngressLive', provenance.get('frameIngressLive', camera_live)))
+        frame_payload['sourceClass'] = source_class
+        frame_payload['detectionSourceMode'] = detection_source_mode
+        frame_payload['authoritativeTargetSource'] = authoritative_target_source
+        frame_payload['renderablePreview'] = renderable_preview
+        frame_payload['cameraLive'] = camera_live
+        frame_payload['frameIngressLive'] = frame_ingress_live
+        frame_payload['visualProvenance'] = {
+            'sourceClass': source_class,
+            'detectionSourceMode': detection_source_mode,
+            'authoritativeTargetSource': authoritative_target_source,
+            'renderablePreview': renderable_preview,
+            'cameraLive': camera_live,
+            'frameIngressLive': frame_ingress_live,
+        }
         return CaptureFrame(width=width, height=height, frame_id=frame_id, payload=frame_payload)
 
     def _decode_image_message(self, msg: Image) -> CaptureFrame:
@@ -152,6 +177,20 @@ class CameraRuntimeNode(ManagedLifecycleNode):
             'step': int(getattr(msg, 'step', 0) or 0),
             'dataSize': len(getattr(msg, 'data', b'') or b''),
             'targets': [],
+            'sourceClass': 'live',
+            'detectionSourceMode': 'real_image_required',
+            'authoritativeTargetSource': 'real_image_required',
+            'renderablePreview': False,
+            'cameraLive': True,
+            'frameIngressLive': True,
+            'visualProvenance': {
+                'sourceClass': 'live',
+                'detectionSourceMode': 'real_image_required',
+                'authoritativeTargetSource': 'real_image_required',
+                'renderablePreview': False,
+                'cameraLive': True,
+                'frameIngressLive': True,
+            },
         }
         return CaptureFrame(width=width, height=height, frame_id=frame_id, payload=payload)
 
@@ -212,9 +251,13 @@ class CameraRuntimeNode(ManagedLifecycleNode):
     def _publish_frame_summary(self, summary: dict[str, Any], *, publish_standard_image: bool) -> None:
         self._last_frame_summary = dict(summary)
         self._last_capture_error = None
+        frame_payload = dict(summary.get('payload') or {}) if isinstance(summary.get('payload'), dict) else {}
+        provenance = dict(frame_payload.get('visualProvenance') or {}) if isinstance(frame_payload.get('visualProvenance'), dict) else {}
         payload = {
             'source': 'camera_runtime',
             'frameIngressMode': self._frame_ingress_mode,
+            'frameIngressLive': bool(summary.get('frameIngressLive', provenance.get('frameIngressLive', self._frame_ingress_mode in {'synthetic_frame_stream', 'live_camera_stream'}))),
+            'cameraLive': bool(summary.get('cameraLive', provenance.get('cameraLive', self._source_type == 'topic'))),
             'frame': dict(summary),
             'capturedAt': time.time(),
         }

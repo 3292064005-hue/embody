@@ -14,7 +14,8 @@ from scripts.check_active_profile_consistency import (
     EXPERIMENTAL_PACKAGES as ACTIVE_LANE_EXPERIMENTAL_PACKAGES,
 )
 from scripts.package_release import EXCLUDE_PREFIXES as RELEASE_EXCLUDE_PREFIXES, should_skip as release_should_skip
-from runtime_authority import load_runtime_authority, load_validated_live_evidence, evaluate_promotion_receipt
+from runtime_authority import load_runtime_authority, load_validated_live_evidence, evaluate_promotion_receipt, validate_runtime_authority_consistency
+from scripts.check_public_interface_ownership import validate_public_interface_ownership
 
 SRC = ROOT / 'backend' / 'embodied_arm_ws' / 'src'
 DEPRECATED = {'arm_msgs'} | set(ACTIVE_LANE_COMPATIBILITY_PACKAGES)
@@ -32,6 +33,7 @@ ALLOW_RAW_TOPIC_FILES = {
     SRC / 'arm_scene_manager' / 'arm_scene_manager' / 'scene_manager_node.py',
     SRC / 'arm_grasp_planner' / 'arm_grasp_planner' / 'grasp_planner_node.py',
     SRC / 'arm_readiness_manager' / 'arm_readiness_manager' / 'readiness_manager_node.py',
+    SRC / 'arm_readiness_manager' / 'arm_readiness_manager' / 'mode_coordinator_node.py',
     SRC / 'arm_task_orchestrator' / 'arm_task_orchestrator' / 'task_orchestrator_node.py',
     ROOT / 'gateway' / 'ros_contract.py',
 }
@@ -240,6 +242,7 @@ def audit_runtime_launch_split() -> list[str]:
     real = SRC / 'arm_bringup' / 'launch' / 'runtime_real.launch.py'
     hybrid = SRC / 'arm_bringup' / 'launch' / 'runtime_hybrid.launch.py'
     full_demo = SRC / 'arm_bringup' / 'launch' / 'full_demo.launch.py'
+    alias_artifact = SRC / 'arm_bringup' / 'config' / 'runtime_lane_aliases.yaml'
     for path in (official, sim, real, hybrid):
         if not path.exists():
             issues.append(f'missing runtime launch file: {path.relative_to(ROOT)}')
@@ -249,8 +252,20 @@ def audit_runtime_launch_split() -> list[str]:
     if 'Compatibility alias' not in official_text or 'runtime_sim.launch.py' not in official_text:
         issues.append('official_runtime.launch.py must be documented as a compatibility alias to runtime_sim.launch.py')
     factory = (SRC / 'arm_bringup' / 'arm_bringup' / 'launch_factory.py').read_text(encoding='utf-8')
-    if 'RUNTIME_LANE_ALIASES' not in factory or "'official_runtime': 'sim_preview'" not in factory:
-        issues.append('launch_factory.py missing official_runtime -> sim_preview alias mapping')
+    if 'RUNTIME_LANE_ALIAS_PATH' not in factory or 'COMPATIBILITY_RUNTIME_LANE_ALIASES' not in factory:
+        issues.append('launch_factory.py must consume generated runtime_lane_aliases.yaml and expose compatibility alias maps')
+    if not alias_artifact.exists():
+        issues.append('runtime lane alias artifact missing: backend/embodied_arm_ws/src/arm_bringup/config/runtime_lane_aliases.yaml')
+    else:
+        try:
+            alias_payload = yaml.safe_load(alias_artifact.read_text(encoding='utf-8')) or {}
+        except Exception as exc:
+            issues.append(f'failed to parse runtime_lane_aliases.yaml: {exc}')
+        else:
+            compatibility = alias_payload.get('compatibility', {}) if isinstance(alias_payload.get('compatibility'), dict) else {}
+            official_runtime = compatibility.get('official_runtime', {}) if isinstance(compatibility.get('official_runtime'), dict) else {}
+            if str(official_runtime.get('lane', '') or '').strip() != 'sim_preview':
+                issues.append('runtime_lane_aliases.yaml missing official_runtime -> sim_preview compatibility mapping')
     demo_text = full_demo.read_text(encoding='utf-8') if full_demo.exists() else ''
     if full_demo.exists() and 'full_demo' not in demo_text:
         issues.append('full_demo launch should remain the demo entrypoint')
@@ -383,6 +398,14 @@ def audit_active_profile_consistency() -> list[str]:
     issues.extend(validate_active_profile())
     return issues
 
+
+
+def audit_runtime_authority_consistency() -> list[str]:
+    try:
+        validate_runtime_authority_consistency(load_runtime_authority())
+    except RuntimeError as exc:
+        return [f'runtime authority consistency failed: {exc}']
+    return []
 
 
 def audit_frontend_lockfile_registry() -> list[str]:
@@ -539,6 +562,65 @@ def audit_repository_gate_evidence() -> list[str]:
     return issues
 
 
+def audit_runtime_entrypoint_hardening() -> list[str]:
+    issues = []
+    launch_factory = ROOT / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_bringup' / 'arm_bringup' / 'launch_factory.py'
+    retired_wrapper = ROOT / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_bringup' / 'launch' / 'runtime_real_authoritative.launch.py'
+    migration_doc = ROOT / 'docs' / 'CONTROL_LANE_MIGRATION.md'
+    text = launch_factory.read_text(encoding='utf-8') if launch_factory.exists() else ''
+    wrapper_text = retired_wrapper.read_text(encoding='utf-8') if retired_wrapper.exists() else ''
+    migration_text = migration_doc.read_text(encoding='utf-8') if migration_doc.exists() else ''
+    if "build_runtime_launch_description('live_control')" in wrapper_text:
+        issues.append('runtime_real_authoritative wrapper still bypasses legacy-alias retirement by launching live_control directly')
+    if "build_runtime_launch_description('real_authoritative')" not in wrapper_text:
+        issues.append('runtime_real_authoritative wrapper must resolve through the retired alias name so opt-in gating stays active')
+    if 'EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES=true' not in wrapper_text:
+        issues.append('runtime_real_authoritative wrapper must document the temporary migration environment opt-in')
+    if 'requires `EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES=true`' not in migration_text:
+        issues.append('CONTROL_LANE_MIGRATION.md must describe the retired wrapper opt-in requirement')
+    if '_allow_generated_runtime_fallback(' in text:
+        issues.append('launch_factory must not reference the removed generated-runtime fallback helper')
+    return issues
+
+
+def audit_active_overlay_isolation() -> list[str]:
+    issues = []
+    overlay_script = ROOT / 'scripts' / 'materialize_active_ros_overlay.py'
+    makefile = ROOT / 'Makefile'
+    ci = ROOT / '.github' / 'workflows' / 'ci.yml'
+    root_gitignore = ROOT.parent / '.gitignore'
+    workspace_gitignore = ROOT / '.gitignore'
+    script_text = overlay_script.read_text(encoding='utf-8') if overlay_script.exists() else ''
+    makefile_text = makefile.read_text(encoding='utf-8') if makefile.exists() else ''
+    ci_text = ci.read_text(encoding='utf-8') if ci.exists() else ''
+    root_gitignore_text = root_gitignore.read_text(encoding='utf-8') if root_gitignore.exists() else ''
+    workspace_gitignore_text = workspace_gitignore.read_text(encoding='utf-8') if workspace_gitignore.exists() else ''
+    overlay_prefix = Path('backend/embodied_arm_ws/.active_overlay')
+    if not overlay_script.exists():
+        issues.append('scripts/materialize_active_ros_overlay.py is missing')
+        return issues
+    for token in ('active_workspace_packages', 'dependency_closure', '.active_overlay'):
+        if token not in script_text:
+            issues.append(f'active overlay script missing token: {token}')
+    if 'materialize_active_ros_overlay.py --print-root' not in makefile_text:
+        issues.append('Makefile ros-build/ros-smoke entrypoints must use the active ROS overlay workspace')
+    if "find $(ROOT) -type d -name '.active_overlay' -prune -exec rm -rf {} +" not in makefile_text:
+        issues.append('Makefile clean must remove the generated .active_overlay workspace')
+    if 'materialize_active_ros_overlay.py --print-root' not in ci_text:
+        issues.append('CI backend build/smoke steps must use the active ROS overlay workspace')
+    if 'rosdep install --from-paths "$ACTIVE_OVERLAY/src" --ignore-src -r -y --rosdistro humble' not in ci_text:
+        issues.append('CI backend dependency installation must resolve rosdep against the active ROS overlay src tree')
+    if "upper_computer/backend/embodied_arm_ws/.active_overlay/" not in root_gitignore_text:
+        issues.append('root .gitignore must ignore the generated active overlay workspace')
+    if '.active_overlay/' not in workspace_gitignore_text:
+        issues.append('upper_computer/.gitignore must ignore the generated active overlay workspace')
+    if overlay_prefix not in RELEASE_EXCLUDE_PREFIXES:
+        issues.append('release packaging must exclude backend/embodied_arm_ws/.active_overlay')
+    if not release_should_skip(overlay_prefix / 'overlay_packages.txt'):
+        issues.append('release packaging must skip generated active overlay metadata files')
+    return issues
+
+
 def audit_runtime_truth_fail_fast() -> list[str]:
     issues = []
     launch_factory = ROOT / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_bringup' / 'arm_bringup' / 'launch_factory.py'
@@ -644,6 +726,8 @@ def main() -> int:
         ('actionized runtime contracts', audit_actionized_runtime_contracts),
         ('planner executor runtime contracts', audit_planner_executor_runtime_contracts),
         ('active profile consistency', audit_active_profile_consistency),
+        ('runtime authority consistency', audit_runtime_authority_consistency),
+        ('public interface ownership', validate_public_interface_ownership),
         ('runtime launch split', audit_runtime_launch_split),
         ('validated live promotion docs', audit_validated_live_promotion_docs),
         ('release checklist alignment', audit_release_checklist_alignment),
@@ -659,6 +743,8 @@ def main() -> int:
         ('ros validation assets', audit_ros_validation_assets),
         ('runtime api contract alignment', audit_runtime_api_contract_alignment),
         ('repository gate evidence', audit_repository_gate_evidence),
+        ('runtime entrypoint hardening', audit_runtime_entrypoint_hardening),
+        ('active overlay isolation', audit_active_overlay_isolation),
         ('runtime truth fail fast', audit_runtime_truth_fail_fast),
         ('frontend lockfile registry', audit_frontend_lockfile_registry),
         ('validated live evidence', audit_validated_live_evidence),

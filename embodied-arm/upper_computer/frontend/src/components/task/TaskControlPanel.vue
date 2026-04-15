@@ -110,7 +110,7 @@ async function handleStop() {
   try {
     await confirmDanger('确认停止当前任务？', '操作确认');
     await commandBus.stopTask();
-    ElMessage.success('已发送停止任务命令');
+    ElMessage.success(taskStore.localPreviewOnly ? '停止任务命令仅做本地 preview 投影' : '已发送停止任务命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -120,7 +120,7 @@ async function handleHome() {
   try {
     await confirmDanger('确认执行回零？', '操作确认');
     await commandBus.home();
-    ElMessage.success('已发送回零命令');
+    ElMessage.success(systemStore.localPreviewOnly ? '回零命令仅做本地 preview 投影' : '已发送回零命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }
@@ -130,7 +130,7 @@ async function handleResetFault() {
   try {
     await confirmDanger('确认复位故障？', '操作确认');
     await commandBus.resetFault();
-    ElMessage.success('已发送故障复位命令');
+    ElMessage.success(systemStore.localPreviewOnly ? '故障复位命令仅做本地 preview 投影' : '已发送故障复位命令');
   } catch (error) {
     if (error instanceof Error) ElMessage.warning(error.message);
   }

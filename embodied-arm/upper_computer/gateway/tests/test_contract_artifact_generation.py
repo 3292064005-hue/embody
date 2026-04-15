@@ -40,3 +40,12 @@ def test_generated_contract_manifest_contains_authoritative_fields() -> None:
     assert manifest['runtime']['promotionReceipts']['validated_live']['effective'] is False
     assert manifest['runtime']['promotionReceipts']['validated_sim']['promoted'] is True
     assert manifest['runtime']['promotionReceipts']['validated_sim']['effective'] is True
+    assert manifest['runtime']['validatedLiveReleaseSlice']['lane'] == 'real_validated_live'
+    assert manifest['tasks']['templates'][0]['graphKey']
+    assert isinstance(manifest['tasks']['templates'][0]['taskGraph'], dict)
+
+
+def test_generated_contract_schema_exposes_release_slice_and_task_graph_keys() -> None:
+    schema = json.loads((ROOT / 'docs' / 'generated' / 'runtime_contract_schema.json').read_text(encoding='utf-8'))
+    assert schema['runtime']['validatedLiveReleaseSlice']['lane'] == 'real_validated_live'
+    assert 'pick-red' in schema['tasks']['graphKeys']

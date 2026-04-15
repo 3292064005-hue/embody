@@ -1,1 +1,0 @@
-<package format="3"><name>arm_vision</name><version>0.1.0</version><description>Deprecated compatibility package retained only for migration. New perception work must use arm_camera_driver and arm_perception.</description><maintainer email="dev@example.com">OpenAI</maintainer><license>MIT</license><exec_depend>rclpy</exec_depend></package>

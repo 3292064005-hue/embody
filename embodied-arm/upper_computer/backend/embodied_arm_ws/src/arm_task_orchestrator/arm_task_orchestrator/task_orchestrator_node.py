@@ -120,6 +120,7 @@ from arm_task_orchestrator.runtime_coordinator import RuntimeCoordinator
 from arm_task_orchestrator.stack_factory import build_application_service, build_runtime_engine, build_target_tracker
 from arm_task_orchestrator.state_machine import SystemStateMachine
 from arm_task_orchestrator.summary_publisher import SummaryPublisher
+from arm_task_orchestrator.task_plugins import resolve_task_graph_contract
 from arm_task_orchestrator.verification import VerificationManager
 
 
@@ -670,6 +671,7 @@ class TaskOrchestratorNode(ManagedLifecycleNode):
 
     def _handle_start_task(self, request: StartTask.Request, response: StartTask.Response) -> StartTask.Response:
         task_id = f'task-{uuid.uuid4().hex[:8]}'
+        graph_contract = resolve_task_graph_contract(str(request.task_type), target_selector=str(request.target_selector))
         queued = TaskRequest(
             task_id=task_id,
             task_type=str(request.task_type),
@@ -677,9 +679,11 @@ class TaskOrchestratorNode(ManagedLifecycleNode):
             place_profile=str(request.place_profile or 'default'),
             auto_retry=bool(request.auto_retry),
             max_retry=max(0, int(request.max_retry or 2)),
+            metadata=dict(graph_contract),
             request_id=f'req-{task_id}',
             correlation_id=f'corr-{task_id}',
             task_run_id=f'taskrun-{task_id}',
+            episode_id=f'episode-{task_id}',
         )
         decision = self._enqueue_task_request(queued)
         response.accepted = bool(decision.accepted)

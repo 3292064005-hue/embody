@@ -26,3 +26,9 @@ def test_extract_synthetic_targets_filters_invalid_ids_and_bad_numbers():
     assert targets[0]['target_id'] == 'ok-1'
     assert targets[0]['x'] == 0.0
     assert targets[0]['y'] == 2.5
+    assert targets[0]['detection_source_mode'] == 'unknown'
+
+
+def test_extract_synthetic_targets_fails_closed_for_live_frame_metadata():
+    frame = {'payload': {'sourceClass': 'live', 'detectionSourceMode': 'real_image_required', 'targets': [{'id': 'should-not-emit'}]}}
+    assert extract_synthetic_targets(frame, detector_name='color') == []

@@ -160,6 +160,8 @@ class MotionExecutor:
             }
             if isinstance(stage.payload.get('executionTarget'), dict):
                 base['execution_target'] = dict(stage.payload.get('executionTarget') or {})
+            if isinstance(stage.payload.get('planningArtifact'), dict):
+                base['planning_artifact'] = dict(stage.payload.get('planningArtifact') or {})
             if isinstance(stage.payload.get('planningTrajectory'), dict):
                 base['planning_trajectory'] = dict(stage.payload.get('planningTrajectory') or {})
             if stage.kind == 'gripper':

@@ -1,6 +1,7 @@
 import type { StartTaskPayload, TaskHistoryEntry, TaskProgress, TaskTemplate } from '@/models/task';
 import { startTask as startTaskRequest, type StartTaskDecision } from '@/api/generated';
-import { unwrapResponse, apiClient, postVoid } from './client';
+import type { CommandTransportResult } from './commandResult';
+import { unwrapResponse, apiClient } from './client';
 
 export type StartTaskResponse = StartTaskDecision;
 
@@ -20,6 +21,8 @@ export async function startTask(payload: StartTaskPayload): Promise<StartTaskRes
   return startTaskRequest(payload);
 }
 
-export async function stopTask(): Promise<void> {
-  await postVoid('/api/task/stop');
+export interface TaskCommandResult extends CommandTransportResult {}
+
+export async function stopTask(): Promise<TaskCommandResult> {
+  return unwrapResponse(apiClient.post('/api/task/stop'));
 }

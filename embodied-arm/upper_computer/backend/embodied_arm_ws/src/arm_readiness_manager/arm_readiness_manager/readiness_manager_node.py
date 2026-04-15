@@ -10,7 +10,6 @@ try:
         MsgTypes,
         SrvTypes,
         TopicNames,
-        ServiceNames,
         build_readiness_state_message,
         parse_calibration_profile_message,
     )
@@ -18,7 +17,6 @@ try:
     HardwareState = MsgTypes.HardwareState
     ReadinessState = MsgTypes.ReadinessState
     TargetInfo = MsgTypes.TargetInfo
-    SetMode = SrvTypes.SetMode
 except Exception:  # pragma: no cover
     rclpy = None
     ManagedLifecycleNode = object
@@ -31,7 +29,6 @@ except Exception:  # pragma: no cover
     HardwareState = object
     ReadinessState = object
     TargetInfo = object
-    SetMode = object
 
     def build_readiness_state_message(payload):
         raise TypeError('ReadinessState unavailable')
@@ -49,9 +46,6 @@ except Exception:  # pragma: no cover
         CALIBRATION_PROFILE_TYPED = '/arm/calibration/profile_typed'
         PROFILES_ACTIVE = '/arm/profiles/active'
         VISION_TARGET = '/arm/vision/target'
-
-    class ServiceNames:
-        SET_MODE = '/arm/set_mode'
 
 from .readiness import ReadinessManager
 
@@ -74,7 +68,6 @@ class ReadinessManagerNode(ManagedLifecycleNode):
             self.create_subscription(CalibrationProfileMsg, TopicNames.CALIBRATION_PROFILE_TYPED, self._on_calibration_typed, 20)
         self.create_subscription(String, TopicNames.PROFILES_ACTIVE, self._on_profiles, 20)
         self.create_subscription(TargetInfo, TopicNames.VISION_TARGET, self._on_target, 20)
-        self.create_service(SetMode, ServiceNames.SET_MODE, self._handle_set_mode)
         self.create_timer(float(self.get_parameter('publish_period_sec').value), self._publish)
         self._manager.update('ros2', True, 'node_started')
 
@@ -206,18 +199,6 @@ class ReadinessManagerNode(ManagedLifecycleNode):
         stale_after = float(self.get_parameter('camera_stale_sec').value)
         if bool(msg.is_valid):
             self._manager.update('target_available', True, 'target_available', stale_after)
-
-    def _handle_set_mode(self, request: SetMode.Request, response: SetMode.Response) -> SetMode.Response:
-        if not self.runtime_active:
-            response.success = False
-            response.message = 'readiness manager inactive'
-            return response
-        mode = str(request.mode or 'idle').strip().lower()
-        current = self._manager.snapshot()
-        self._manager.set_mode(mode, controller_mode=mode, runtime_phase=current.runtime_phase, task_stage=current.task_stage)
-        response.success = True
-        response.message = f'mode set to {mode}'
-        return response
 
     def _publish(self) -> None:
         if not self.runtime_active:

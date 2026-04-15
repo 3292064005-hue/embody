@@ -94,28 +94,6 @@ paths:
           content:
             application/json:
               schema: {}
-  /api/hardware/set-mode:
-    post:
-      summary: Post Set Mode
-      operationId: post_set_mode_api_hardware_set_mode_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetModeRequest'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/task/current:
     get:
       summary: Get Task Current
@@ -161,7 +139,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/StartTaskResponseEnvelope'
         '422':
           description: Validation Error
           content:
@@ -324,6 +303,37 @@ paths:
           content:
             application/json:
               schema: {}
+  /api/hardware/set-mode:
+    post:
+      summary: Post Set Mode
+      description: "Update the controller mode through the hardware command surface.\n\
+        \nArgs:\n    body: Requested controller mode payload.\n    request: FastAPI\
+        \ request carrying runtime context and operator headers.\n\nReturns:\n   \
+        \ Wrapped command result bound to the current request id.\n\nRaises:\n   \
+        \ ApiException: Propagates role or transport failures through the command\
+        \ pipeline.\n\nBoundary behavior:\n    Operator role may switch only into\
+        \ public operator modes; maintenance-only\n    modes still require the maintainer\
+        \ role and never bypass readiness fail-closed\n    handling on downstream\
+        \ commands."
+      operationId: post_set_mode_api_hardware_set_mode_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetModeRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/hardware/gripper:
     post:
       summary: Post Gripper
@@ -577,6 +587,47 @@ components:
       required:
       - mode
       title: SetModeRequest
+    StartTaskDecisionResponse:
+      properties:
+        taskId:
+          type: string
+          title: Taskid
+        taskRunId:
+          type: string
+          title: Taskrunid
+        episodeId:
+          type: string
+          title: Episodeid
+        templateId:
+          type: string
+          title: Templateid
+        pluginKey:
+          type: string
+          title: Pluginkey
+        graphKey:
+          type: string
+          title: Graphkey
+        runtimeTier:
+          type: string
+          enum:
+          - preview
+          - validated_sim
+          - validated_live
+          title: Runtimetier
+        productLine:
+          type: string
+          title: Productline
+      type: object
+      required:
+      - taskId
+      - taskRunId
+      - episodeId
+      - templateId
+      - pluginKey
+      - graphKey
+      - runtimeTier
+      - productLine
+      title: StartTaskDecisionResponse
     StartTaskRequest:
       properties:
         templateId:
@@ -608,6 +659,35 @@ components:
           title: Targetcategory
       type: object
       title: StartTaskRequest
+    StartTaskResponseEnvelope:
+      properties:
+        code:
+          type: integer
+          title: Code
+          default: 0
+        message:
+          type: string
+          title: Message
+          default: ok
+        requestId:
+          type: string
+          title: Requestid
+        correlationId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Correlationid
+        timestamp:
+          type: string
+          title: Timestamp
+        data:
+          $ref: '#/components/schemas/StartTaskDecisionResponse'
+      type: object
+      required:
+      - requestId
+      - timestamp
+      - data
+      title: StartTaskResponseEnvelope
     ValidationError:
       properties:
         loc:

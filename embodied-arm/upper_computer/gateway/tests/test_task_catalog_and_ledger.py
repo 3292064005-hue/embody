@@ -128,3 +128,11 @@ def test_map_camera_frame_summary_keeps_live_metadata_without_fake_preview() -> 
     assert projected['syntheticPreview'] is False
     assert projected['providerKind'] == 'live_frame_summary'
     assert 'renderable frame' in projected['message']
+
+
+def test_public_task_templates_expose_graph_descriptors() -> None:
+    templates = public_task_templates()
+    first = next(item for item in templates if item['id'] == 'pick-red')
+    assert first['graphKey'] == 'pick-red'
+    assert first['taskGraph']['nodes'][0]['stage'] == 'perception'
+    assert first['taskGraph']['recovery']['maxRetries'] == 2

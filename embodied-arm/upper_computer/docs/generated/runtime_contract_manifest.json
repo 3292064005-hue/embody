@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.5",
+  "schemaVersion": "1.6",
   "generatedFrom": "scripts/generate_contract_artifacts.py",
   "readiness": {
     "publicFields": [
@@ -18,6 +18,13 @@
       "simulated",
       "runtimeTier",
       "productLine",
+      "runtimeDeliveryTrack",
+      "executionBackbone",
+      "executionBackboneSummary",
+      "promotionReceipts",
+      "releaseGates",
+      "firmwareSemanticProfile",
+      "firmwareSemanticMessage",
       "manualCommandLimits",
       "runtimeConfigVersion",
       "source",
@@ -143,43 +150,36 @@
         "manual",
         "maintenance",
         "safe_stop",
-        "fault",
-        "simulated_local_only"
+        "fault"
       ],
       "jog": [
         "manual",
-        "maintenance",
-        "simulated_local_only"
+        "maintenance"
       ],
       "servoCartesian": [
         "manual",
-        "maintenance",
-        "simulated_local_only"
+        "maintenance"
       ],
       "gripper": [
         "manual",
-        "maintenance",
-        "simulated_local_only"
+        "maintenance"
       ],
       "home": [
         "idle",
         "manual",
         "maintenance",
         "task",
-        "fault",
-        "simulated_local_only"
+        "fault"
       ],
       "resetFault": [
         "fault",
-        "safe_stop",
-        "simulated_local_only"
+        "safe_stop"
       ],
       "recover": [
         "idle",
         "maintenance",
         "fault",
-        "safe_stop",
-        "simulated_local_only"
+        "safe_stop"
       ]
     }
   },
@@ -281,21 +281,68 @@
     "supervisionPackages": [
       "arm_lifecycle_manager"
     ],
+    "officialRuntimeLanes": [
+      "sim_preview",
+      "sim_perception_preview",
+      "real_preview",
+      "hybrid_preview",
+      "hw_preview",
+      "full_demo_preview",
+      "sim_authoritative",
+      "full_demo_authoritative"
+    ],
+    "experimentalRuntimeLanes": [
+      "live_proto",
+      "live_control",
+      "real_validated_live"
+    ],
     "laneAliases": {
+      "authoritative_runtime": "sim_authoritative",
+      "experimental_live": "real_validated_live",
+      "experimental_live_control": "live_control",
+      "experimental_live_proto": "live_proto",
+      "experimental_real_candidate": "live_control",
+      "experimental_real_proto": "live_proto",
+      "experimental_real_validated_live": "real_validated_live",
+      "experimental_validated_live": "real_validated_live",
+      "full_demo": "full_demo_preview",
+      "full_demo_validated": "full_demo_authoritative",
+      "hw": "hw_preview",
+      "hybrid": "hybrid_preview",
+      "official_runtime": "sim_preview",
+      "real": "real_preview",
+      "sim": "sim_preview",
+      "sim_perception_realistic": "sim_perception_preview",
+      "sim_validated": "sim_authoritative"
+    },
+    "compatibilityLaneAliases": {
       "authoritative_runtime": "sim_authoritative",
       "full_demo": "full_demo_preview",
       "full_demo_validated": "full_demo_authoritative",
       "hw": "hw_preview",
       "hybrid": "hybrid_preview",
-      "live": "real_validated_live",
       "official_runtime": "sim_preview",
       "real": "real_preview",
-      "real_authoritative": "real_candidate",
-      "real_authoritative_live": "real_validated_live",
-      "real_validated": "real_candidate",
       "sim": "sim_preview",
       "sim_perception_realistic": "sim_perception_preview",
-      "sim_validated": "sim_authoritative",
+      "sim_validated": "sim_authoritative"
+    },
+    "experimentalLaneAliases": {
+      "experimental_live": "real_validated_live",
+      "experimental_live_control": "live_control",
+      "experimental_live_proto": "live_proto",
+      "experimental_real_candidate": "live_control",
+      "experimental_real_proto": "live_proto",
+      "experimental_real_validated_live": "real_validated_live",
+      "experimental_validated_live": "real_validated_live"
+    },
+    "legacyExperimentalLaneAliases": {
+      "live": "real_validated_live",
+      "real_authoritative": "live_control",
+      "real_authoritative_live": "real_validated_live",
+      "real_control": "live_control",
+      "real_proto": "live_proto",
+      "real_validated": "live_control",
       "validated_live": "real_validated_live"
     },
     "laneCapabilities": {
@@ -303,121 +350,404 @@
         "frameIngressMode": "synthetic_frame_stream",
         "forwardHardwareCommands": true,
         "hardwareExecutionMode": "authoritative_simulation",
+        "executionBackbone": "dispatcher",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "synthetic_frame",
         "esp32FrameIngressLive": true,
         "planningCapability": "validated_sim",
         "planningAuthoritative": true,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "validated_sim",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "validated_sim"
       },
       "full_demo_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
       },
       "hw_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
       },
       "hybrid_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
       },
-      "real_candidate": {
+      "live_control": {
         "frameIngressMode": "live_camera_stream",
         "forwardHardwareCommands": true,
-        "hardwareExecutionMode": "ros2_control_live",
+        "hardwareExecutionMode": "ros2_control_candidate",
+        "executionBackbone": "ros2_control",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "live_frame_summary",
         "esp32FrameIngressLive": true,
         "planningCapability": "validated_live",
         "planningAuthoritative": true,
-        "planningBackendDeclared": false,
+        "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "experimental",
+        "officialRuntimeLane": false,
+        "runtimeTier": "preview"
+      },
+      "live_proto": {
+        "frameIngressMode": "reserved_endpoint",
+        "forwardHardwareCommands": false,
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
+        "esp32StreamSemantic": "reserved",
+        "esp32FrameIngressLive": false,
+        "planningCapability": "contract_only",
+        "planningAuthoritative": false,
+        "planningBackendDeclared": true,
+        "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "experimental",
+        "officialRuntimeLane": false,
         "runtimeTier": "preview"
       },
       "real_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
       },
       "real_validated_live": {
         "frameIngressMode": "live_camera_stream",
         "forwardHardwareCommands": true,
         "hardwareExecutionMode": "ros2_control_live",
+        "executionBackbone": "ros2_control",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "live_frame_summary",
         "esp32FrameIngressLive": true,
         "planningCapability": "validated_live",
         "planningAuthoritative": true,
-        "planningBackendDeclared": false,
+        "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "experimental",
+        "officialRuntimeLane": false,
         "runtimeTier": "preview"
       },
       "sim_authoritative": {
         "frameIngressMode": "synthetic_frame_stream",
         "forwardHardwareCommands": true,
         "hardwareExecutionMode": "authoritative_simulation",
+        "executionBackbone": "dispatcher",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "synthetic_frame",
         "esp32FrameIngressLive": true,
         "planningCapability": "validated_sim",
         "planningAuthoritative": true,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "validated_sim",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "validated_sim"
       },
       "sim_perception_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
       },
       "sim_preview": {
         "frameIngressMode": "reserved_endpoint",
         "forwardHardwareCommands": false,
-        "hardwareExecutionMode": "protocol_bridge",
+        "hardwareExecutionMode": "protocol_simulator",
+        "executionBackbone": "protocol_simulator",
+        "executionBackboneDeclared": true,
         "esp32StreamSemantic": "reserved",
         "esp32FrameIngressLive": false,
         "planningCapability": "contract_only",
         "planningAuthoritative": false,
         "planningBackendDeclared": true,
         "publicRuntimeTier": "preview",
+        "runtimeDeliveryTrack": "official_active",
+        "officialRuntimeLane": true,
         "runtimeTier": "preview"
+      }
+    },
+    "governance": {
+      "defaultRuntimeLane": "sim_preview",
+      "officialProductLines": [
+        "preview",
+        "validated_sim"
+      ],
+      "experimentalProductLines": [
+        "validated_live"
+      ],
+      "officialRuntimeLanes": [
+        "sim_preview",
+        "sim_perception_preview",
+        "real_preview",
+        "hybrid_preview",
+        "hw_preview",
+        "full_demo_preview",
+        "sim_authoritative",
+        "full_demo_authoritative"
+      ],
+      "experimentalRuntimeLanes": [
+        "live_proto",
+        "live_control",
+        "real_validated_live"
+      ],
+      "laneClassification": {
+        "sim_preview": "official_active",
+        "sim_perception_preview": "official_active",
+        "real_preview": "official_active",
+        "hybrid_preview": "official_active",
+        "hw_preview": "official_active",
+        "full_demo_preview": "official_active",
+        "sim_authoritative": "official_active",
+        "full_demo_authoritative": "official_active",
+        "live_proto": "experimental",
+        "live_control": "experimental",
+        "real_validated_live": "experimental"
+      }
+    },
+    "acceptanceMatrix": {
+      "full_demo_authoritative": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "validated_sim",
+        "effectivePublicRuntimeTier": "validated_sim",
+        "taskWorkbenchVisible": true,
+        "taskExecutionInteractive": true,
+        "checks": [
+          "public tier must be validated_sim",
+          "planning_capability must be validated_sim",
+          "hardware_execution_mode must be authoritative_simulation",
+          "forward_hardware_commands must remain true",
+          "task execution must be interactive"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "full_demo_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "hw_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "hybrid_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "live_control": {
+        "deliveryTrack": "experimental",
+        "officialRuntimeLane": false,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "delivery track must remain experimental",
+          "planning_capability must remain validated_live or live-candidate scoped",
+          "hardware_execution_mode must remain ros2_control_live or candidate live equivalent",
+          "public tier must fail closed to preview until promotion is effective"
+        ],
+        "requiredEvidence": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ],
+        "releaseChannel": "experimental"
+      },
+      "live_proto": {
+        "deliveryTrack": "experimental",
+        "officialRuntimeLane": false,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "delivery track must remain experimental",
+          "planning_capability must remain validated_live or live-candidate scoped",
+          "hardware_execution_mode must remain ros2_control_live or candidate live equivalent",
+          "public tier must fail closed to preview until promotion is effective"
+        ],
+        "requiredEvidence": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ],
+        "releaseChannel": "experimental"
+      },
+      "real_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "real_validated_live": {
+        "deliveryTrack": "experimental",
+        "officialRuntimeLane": false,
+        "intendedProductLine": "validated_live",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "delivery track must remain experimental",
+          "planning_capability must remain validated_live or live-candidate scoped",
+          "hardware_execution_mode must remain ros2_control_live or candidate live equivalent",
+          "public tier must fail closed to preview until promotion is effective"
+        ],
+        "requiredEvidence": [
+          "validated_live_backbone_declared",
+          "target_runtime_gate_passed",
+          "hil_gate_passed",
+          "release_checklist_signed"
+        ],
+        "releaseChannel": "experimental"
+      },
+      "sim_authoritative": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "validated_sim",
+        "effectivePublicRuntimeTier": "validated_sim",
+        "taskWorkbenchVisible": true,
+        "taskExecutionInteractive": true,
+        "checks": [
+          "public tier must be validated_sim",
+          "planning_capability must be validated_sim",
+          "hardware_execution_mode must be authoritative_simulation",
+          "forward_hardware_commands must remain true",
+          "task execution must be interactive"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "sim_perception_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
+      },
+      "sim_preview": {
+        "deliveryTrack": "official_active",
+        "officialRuntimeLane": true,
+        "intendedProductLine": "preview",
+        "effectivePublicRuntimeTier": "preview",
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
+        "checks": [
+          "public tier must remain preview",
+          "task execution must stay non-interactive",
+          "forward_hardware_commands must remain false"
+        ],
+        "requiredEvidence": [],
+        "releaseChannel": "official_active"
       }
     },
     "promotionReceipts": {
@@ -474,13 +804,12 @@
         "promotionControlled": false,
         "promotionEffective": false,
         "promotionMissing": [],
+        "releaseChannel": "official_active",
         "lanes": [
           "full_demo_preview",
           "hw_preview",
           "hybrid_preview",
-          "real_candidate",
           "real_preview",
-          "real_validated_live",
           "sim_perception_preview",
           "sim_preview"
         ]
@@ -494,6 +823,7 @@
         "promotionControlled": false,
         "promotionEffective": true,
         "promotionMissing": [],
+        "releaseChannel": "official_active",
         "lanes": [
           "full_demo_authoritative",
           "sim_authoritative"
@@ -513,6 +843,7 @@
           "hil_gate_passed",
           "release_checklist_signed"
         ],
+        "releaseChannel": "experimental",
         "lanes": []
       }
     },
@@ -526,10 +857,83 @@
       "readiness": "arm_readiness_manager",
       "safety": "arm_safety_supervisor",
       "task orchestration": "arm_task_orchestrator"
+    },
+    "validatedLiveBackbone": {
+      "lane": "real_validated_live",
+      "planning_backend_profile": "validated_live_bridge",
+      "requirements": {
+        "camera_source": "topic",
+        "frame_ingress_mode": "live_camera_stream",
+        "esp32_frame_ingress_live": true,
+        "scene_provider_mode": "runtime_service",
+        "grasp_provider_mode": "runtime_service",
+        "forward_hardware_commands": true,
+        "execution_backbone": "ros2_control",
+        "enable_ros2_control": true,
+        "hardware_execution_mode": "ros2_control_live"
+      },
+      "owner": "arm_control_bringup",
+      "controller_manager_package": "arm_control_bringup",
+      "hardware_interface_package": "arm_hardware_interface",
+      "moveit_backend_profile": "validated_live_bridge",
+      "release_gate_profile": "validated_live"
+    },
+    "validatedLiveReleaseSlice": {
+      "lane": "real_validated_live",
+      "bringup_launch": "arm_bringup/launch/runtime_real_validated_live.launch.py",
+      "target_env_script": "scripts/ros_target_validation.sh",
+      "target_gate_report": "artifacts/release_gates/target_runtime_gate.json",
+      "hil_checklist_artifact": "artifacts/hil/hil_checklist.json",
+      "release_checklist_artifact": "docs/evidence/validated_live/release_checklist.md",
+      "smoke_tests": [
+        "backend/embodied_arm_ws/tests/test_ros_launch_smoke.py",
+        "backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py",
+        "backend/embodied_arm_ws/tests/test_runtime_lane_validated_live.py",
+        "backend/embodied_arm_ws/tests/test_moveit_validated_live_fail_closed.py"
+      ],
+      "rollback_lane": "sim_authoritative"
+    },
+    "firmwareSemanticProfiles": {
+      "default_profile": "preview_reserved",
+      "profiles": {
+        "preview_reserved": {
+          "source_lane": "sim_preview",
+          "camera_available": false,
+          "frame_ingress_live": false,
+          "stream_semantic": "reserved",
+          "frame_ingress_mode": "reserved_endpoint",
+          "stream_delivery_model": "control_plane_only",
+          "stream_control_plane": "esp32_metadata_bridge",
+          "stream_message": "preview reserved profile keeps /stream in control-plane-only mode until an authoritative lane declares live ingress",
+          "hostname": "esp32.local"
+        },
+        "validated_sim_synthetic": {
+          "source_lane": "sim_authoritative",
+          "camera_available": true,
+          "frame_ingress_live": true,
+          "stream_semantic": "synthetic_frame",
+          "frame_ingress_mode": "synthetic_frame_stream",
+          "stream_delivery_model": "synthetic_preview",
+          "stream_control_plane": "esp32_metadata_bridge",
+          "stream_message": "validated_sim profile publishes synthetic frame ingress metadata for authoritative simulation",
+          "hostname": "esp32.local"
+        },
+        "validated_live_external_bridge": {
+          "source_lane": "real_validated_live",
+          "camera_available": true,
+          "frame_ingress_live": true,
+          "stream_semantic": "live_frame_summary",
+          "frame_ingress_mode": "live_camera_stream",
+          "stream_delivery_model": "external_bridge_required",
+          "stream_control_plane": "esp32_metadata_bridge",
+          "stream_message": "validated_live profile expects an external camera bridge to supply authoritative live ingress while ESP32 publishes board metadata",
+          "hostname": "esp32.local"
+        }
+      }
     }
   },
   "tasks": {
-    "schemaVersion": 2,
+    "schemaVersion": 4,
     "productLines": {
       "preview": {
         "label": "Preview / Contract Only",
@@ -567,7 +971,96 @@
         "riskLevel": "low",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_pick_by_color.yaml",
-        "operatorHint": "适合单目标验证链路与基础抓取验收。"
+        "operatorHint": "适合单目标验证链路与基础抓取验收。",
+        "capabilityTags": [
+          "pick",
+          "single_target",
+          "color:red"
+        ],
+        "preconditions": [
+          "readiness.target_available",
+          "readiness.motion_planner",
+          "readiness.hardware_bridge"
+        ],
+        "sequenceMode": "single_target",
+        "pluginKey": "single_target",
+        "graphKey": "pick-red",
+        "taskGraph": {
+          "graphKey": "pick-red",
+          "entryNode": "perception",
+          "sequenceMode": "single_target",
+          "pluginKey": "single_target",
+          "preconditions": [
+            "readiness.target_available",
+            "readiness.motion_planner",
+            "readiness.hardware_bridge"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标确认",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "轨迹规划",
+              "terminal": false
+            },
+            {
+              "id": "execute",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "执行",
+              "terminal": false
+            },
+            {
+              "id": "verify",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "结果校验",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "plan",
+              "condition": "target_locked"
+            },
+            {
+              "from": "plan",
+              "to": "execute",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute",
+              "to": "verify",
+              "condition": "execution_done"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "pick-red"
+        }
       },
       {
         "id": "pick-blue",
@@ -585,7 +1078,96 @@
         "riskLevel": "low",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_pick_by_color.yaml",
-        "operatorHint": "适合单目标验证链路与基础抓取验收。"
+        "operatorHint": "适合单目标验证链路与基础抓取验收。",
+        "capabilityTags": [
+          "pick",
+          "single_target",
+          "color:blue"
+        ],
+        "preconditions": [
+          "readiness.target_available",
+          "readiness.motion_planner",
+          "readiness.hardware_bridge"
+        ],
+        "sequenceMode": "single_target",
+        "pluginKey": "single_target",
+        "graphKey": "pick-blue",
+        "taskGraph": {
+          "graphKey": "pick-blue",
+          "entryNode": "perception",
+          "sequenceMode": "single_target",
+          "pluginKey": "single_target",
+          "preconditions": [
+            "readiness.target_available",
+            "readiness.motion_planner",
+            "readiness.hardware_bridge"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标确认",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "轨迹规划",
+              "terminal": false
+            },
+            {
+              "id": "execute",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "执行",
+              "terminal": false
+            },
+            {
+              "id": "verify",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "结果校验",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "plan",
+              "condition": "target_locked"
+            },
+            {
+              "from": "plan",
+              "to": "execute",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute",
+              "to": "verify",
+              "condition": "execution_done"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "pick-blue"
+        }
       },
       {
         "id": "pick-green",
@@ -603,7 +1185,96 @@
         "riskLevel": "low",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_pick_by_color.yaml",
-        "operatorHint": "适合绿色类目标的单目标搬运验收。"
+        "operatorHint": "适合绿色类目标的单目标搬运验收。",
+        "capabilityTags": [
+          "pick",
+          "single_target",
+          "color:green"
+        ],
+        "preconditions": [
+          "readiness.target_available",
+          "readiness.motion_planner",
+          "readiness.hardware_bridge"
+        ],
+        "sequenceMode": "single_target",
+        "pluginKey": "single_target",
+        "graphKey": "pick-green",
+        "taskGraph": {
+          "graphKey": "pick-green",
+          "entryNode": "perception",
+          "sequenceMode": "single_target",
+          "pluginKey": "single_target",
+          "preconditions": [
+            "readiness.target_available",
+            "readiness.motion_planner",
+            "readiness.hardware_bridge"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标确认",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "轨迹规划",
+              "terminal": false
+            },
+            {
+              "id": "execute",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "执行",
+              "terminal": false
+            },
+            {
+              "id": "verify",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "结果校验",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "plan",
+              "condition": "target_locked"
+            },
+            {
+              "from": "plan",
+              "to": "execute",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute",
+              "to": "verify",
+              "condition": "execution_done"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "retry_once_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "pick-green"
+        }
       },
       {
         "id": "sort-color",
@@ -625,7 +1296,110 @@
         "riskLevel": "medium",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_pick_by_color.yaml",
-        "operatorHint": "需要颜色目标检测链路稳定。"
+        "operatorHint": "需要颜色目标检测链路稳定。",
+        "capabilityTags": [
+          "sort",
+          "color",
+          "multi_selector"
+        ],
+        "preconditions": [
+          "readiness.target_available",
+          "readiness.motion_planner",
+          "readiness.hardware_bridge",
+          "readiness.perception_alive"
+        ],
+        "sequenceMode": "selector_routed",
+        "pluginKey": "selector_routed",
+        "graphKey": "sort-color",
+        "taskGraph": {
+          "graphKey": "sort-color",
+          "entryNode": "perception",
+          "sequenceMode": "selector_routed",
+          "pluginKey": "selector_routed",
+          "preconditions": [
+            "readiness.target_available",
+            "readiness.motion_planner",
+            "readiness.hardware_bridge",
+            "readiness.perception_alive"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标确认",
+              "terminal": false
+            },
+            {
+              "id": "selector",
+              "kind": "selection",
+              "stage": "selection",
+              "label": "目标类别路由",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "轨迹规划",
+              "terminal": false
+            },
+            {
+              "id": "execute",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "执行",
+              "terminal": false
+            },
+            {
+              "id": "verify",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "结果校验",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "selector",
+              "condition": "target_locked"
+            },
+            {
+              "from": "selector",
+              "to": "plan",
+              "condition": "selector_resolved"
+            },
+            {
+              "from": "plan",
+              "to": "execute",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute",
+              "to": "verify",
+              "condition": "execution_done"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "selector_retarget_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "selector_retarget_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "sort-color"
+        }
       },
       {
         "id": "sort-qr",
@@ -647,7 +1421,110 @@
         "riskLevel": "medium",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_pick_by_color.yaml",
-        "operatorHint": "当前二维码任务仅保证识别触发与默认料区搬运语义。"
+        "operatorHint": "当前二维码任务仅保证识别触发与默认料区搬运语义。",
+        "capabilityTags": [
+          "sort",
+          "qr",
+          "multi_selector"
+        ],
+        "preconditions": [
+          "readiness.target_available",
+          "readiness.motion_planner",
+          "readiness.hardware_bridge",
+          "readiness.perception_alive"
+        ],
+        "sequenceMode": "selector_routed",
+        "pluginKey": "selector_routed",
+        "graphKey": "sort-qr",
+        "taskGraph": {
+          "graphKey": "sort-qr",
+          "entryNode": "perception",
+          "sequenceMode": "selector_routed",
+          "pluginKey": "selector_routed",
+          "preconditions": [
+            "readiness.target_available",
+            "readiness.motion_planner",
+            "readiness.hardware_bridge",
+            "readiness.perception_alive"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标确认",
+              "terminal": false
+            },
+            {
+              "id": "selector",
+              "kind": "selection",
+              "stage": "selection",
+              "label": "目标类别路由",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "轨迹规划",
+              "terminal": false
+            },
+            {
+              "id": "execute",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "执行",
+              "terminal": false
+            },
+            {
+              "id": "verify",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "结果校验",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "selector",
+              "condition": "target_locked"
+            },
+            {
+              "from": "selector",
+              "to": "plan",
+              "condition": "selector_resolved"
+            },
+            {
+              "from": "plan",
+              "to": "execute",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute",
+              "to": "verify",
+              "condition": "execution_done"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "selector_retarget_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "selector_retarget_then_fail_closed",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "sort-qr"
+        }
       },
       {
         "id": "clear-table",
@@ -663,7 +1540,113 @@
         "riskLevel": "high",
         "requiredRuntimeTier": "validated_sim",
         "taskProfilePath": "task_clear_table.yaml",
-        "operatorHint": "连续搬运任务，对感知、规划与执行链路稳定性要求更高。"
+        "operatorHint": "连续搬运任务，对感知、规划与执行链路稳定性要求更高。",
+        "capabilityTags": [
+          "clear_table",
+          "continuous",
+          "multi_target"
+        ],
+        "preconditions": [
+          "readiness.motion_planner",
+          "readiness.hardware_bridge",
+          "readiness.perception_alive"
+        ],
+        "sequenceMode": "continuous",
+        "pluginKey": "continuous",
+        "graphKey": "clear-table",
+        "taskGraph": {
+          "graphKey": "clear-table",
+          "entryNode": "perception",
+          "sequenceMode": "continuous",
+          "pluginKey": "continuous",
+          "preconditions": [
+            "readiness.motion_planner",
+            "readiness.hardware_bridge",
+            "readiness.perception_alive"
+          ],
+          "nodes": [
+            {
+              "id": "perception",
+              "kind": "perception",
+              "stage": "perception",
+              "label": "目标扫描",
+              "terminal": false
+            },
+            {
+              "id": "plan",
+              "kind": "planning",
+              "stage": "planning",
+              "label": "批次规划",
+              "terminal": false
+            },
+            {
+              "id": "execute_batch",
+              "kind": "execution",
+              "stage": "execution",
+              "label": "批次执行",
+              "terminal": false
+            },
+            {
+              "id": "verify_batch",
+              "kind": "verification",
+              "stage": "verification",
+              "label": "批次校验",
+              "terminal": false
+            },
+            {
+              "id": "complete",
+              "kind": "terminal",
+              "stage": "terminal",
+              "label": "完成",
+              "terminal": true
+            }
+          ],
+          "edges": [
+            {
+              "from": "perception",
+              "to": "plan",
+              "condition": "next_target_available"
+            },
+            {
+              "from": "plan",
+              "to": "execute_batch",
+              "condition": "plan_ready"
+            },
+            {
+              "from": "execute_batch",
+              "to": "verify_batch",
+              "condition": "execution_done"
+            },
+            {
+              "from": "verify_batch",
+              "to": "perception",
+              "condition": "targets_remaining"
+            },
+            {
+              "from": "verify_batch",
+              "to": "complete",
+              "condition": "workspace_clear"
+            }
+          ],
+          "recoveryPolicy": {
+            "mode": "batch_continue_with_failure_ledger",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "recovery": {
+            "mode": "batch_continue_with_failure_ledger",
+            "maxAutomaticRetry": 1,
+            "maxRetries": 2
+          },
+          "auditSurface": [
+            "perception",
+            "plan",
+            "execute",
+            "verify"
+          ],
+          "graphVersion": "v1",
+          "templateId": "clear-table"
+        }
       }
     ]
   }

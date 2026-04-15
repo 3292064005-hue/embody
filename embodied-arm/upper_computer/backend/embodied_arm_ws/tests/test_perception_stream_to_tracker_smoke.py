@@ -10,4 +10,5 @@ def test_perception_stream_updates_tracker_liveness_and_availability():
     assert first['targetAvailable'] is False
     second = node.process_summary(camera.capture_once(), now=1.1)
     assert second['targetAvailable'] is True
+    assert second['authoritativeVisualSource'] == 'synthetic_perception'
     assert node.health_snapshot(now=2.0, stale_after_sec=0.5)['perceptionAlive'] is False

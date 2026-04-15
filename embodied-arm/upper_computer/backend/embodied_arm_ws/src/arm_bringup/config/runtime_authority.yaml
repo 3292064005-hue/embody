@@ -1,4 +1,4 @@
-schema_version: 2
+schema_version: 4
 product_lines:
   preview:
     label: Preview / Contract Only
@@ -66,15 +66,46 @@ planning_backends:
     metadata:
       executionModel: validated_simulation_runtime
   validated_live_bridge:
-    plugin: http_bridge
-    declared: false
+    plugin: runtime_service_bridge
+    declared: true
     capability_mode: validated_live
-    planner_plugin: moveit_http_bridge
+    planner_plugin: moveit_runtime_bridge
     scene_source: runtime_scene_service
-    url: http://127.0.0.1:8088/plan
-    timeout_sec: 1.5
+    workspace_bounds:
+      min_x: -0.35
+      max_x: 0.35
+      min_y: -0.35
+      max_y: 0.35
+      min_z: 0.02
+      max_z: 0.45
+      min_yaw: -3.14159
+      max_yaw: 3.14159
+      approach_offset_z: 0.08
+    named_poses:
+      home:
+        joint_1: 0.0
+        joint_2: 0.0
+        joint_3: 0.0
+        joint_4: 0.0
+        joint_5: 0.0
+        joint_6: 0.0
+      stow:
+        joint_1: 0.0
+        joint_2: -0.35
+        joint_3: 0.7
+        joint_4: 0.0
+        joint_5: 0.55
+        joint_6: 0.0
+      inspect:
+        joint_1: 0.0
+        joint_2: -0.1
+        joint_3: 0.35
+        joint_4: 0.0
+        joint_5: 0.2
+        joint_6: 0.0
     metadata:
-      executionModel: validated_live_bridge
+      executionModel: validated_live_runtime_service
+      planningBoundary: runtime_service_bridge
 promotion_tiers:
   validated_sim:
     promoted: true
@@ -92,6 +123,7 @@ promotion_tiers:
     - contract-artifacts
     - runtime-contracts
   validated_live:
+    promotion_mode: automatic_when_ready
     promoted: false
     receipt_id: ''
     checked_by: ''
@@ -103,6 +135,26 @@ promotion_tiers:
     - release_checklist_signed
     evidence: []
     reason: fail_closed_until_validated_live_backbone_and_release_gates_are_committed
+runtime_governance:
+  default_runtime_lane: sim_preview
+  official_product_lines:
+  - preview
+  - validated_sim
+  experimental_product_lines:
+  - validated_live
+  official_runtime_lanes:
+  - sim_preview
+  - sim_perception_preview
+  - real_preview
+  - hybrid_preview
+  - hw_preview
+  - full_demo_preview
+  - sim_authoritative
+  - full_demo_authoritative
+  experimental_runtime_lanes:
+  - live_proto
+  - live_control
+  - real_validated_live
 runtime_lanes:
   sim_preview:
     intended_product_line: preview
@@ -128,8 +180,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   sim_perception_preview:
@@ -156,8 +208,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   real_preview:
@@ -184,8 +236,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   hybrid_preview:
@@ -212,8 +264,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   hw_preview:
@@ -240,8 +292,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   full_demo_preview:
@@ -268,8 +320,8 @@ runtime_lanes:
     esp32_frame_ingress_live: false
     frame_ingress_mode: reserved_endpoint
     forward_hardware_commands: false
-    hardware_execution_mode: protocol_bridge
-    execution_backbone: protocol_bridge
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
     execution_backbone_declared: true
     enable_ros2_control: false
   sim_authoritative:
@@ -332,7 +384,36 @@ runtime_lanes:
     execution_backbone_declared: true
     enable_ros2_control: false
     stm32_authoritative_simulation: true
-  real_candidate:
+  live_proto:
+    intended_product_line: preview
+    simulate_hardware: false
+    camera_source: topic
+    esp32_mode: wifi
+    include_mock_targets: false
+    mock_camera_profile: authoritative_demo
+    enable_esp32_gateway: true
+    esp32_base_url: http://esp32.local
+    enable_moveit: false
+    enable_rviz: false
+    enable_lifecycle_supervisor: true
+    enable_managed_lifecycle: true
+    autostart_managed_lifecycle: true
+    allow_simulation_fallback: false
+    planning_capability: contract_only
+    planning_authoritative: false
+    planning_backend_name: fallback_contract
+    scene_provider_mode: embedded_core
+    grasp_provider_mode: embedded_core
+    esp32_stream_semantic: reserved
+    esp32_frame_ingress_live: false
+    frame_ingress_mode: reserved_endpoint
+    forward_hardware_commands: false
+    hardware_execution_mode: protocol_simulator
+    execution_backbone: protocol_simulator
+    execution_backbone_declared: true
+    enable_ros2_control: false
+    live_stage: proto
+  live_control:
     intended_product_line: preview
     simulate_hardware: false
     camera_source: topic
@@ -357,12 +438,13 @@ runtime_lanes:
     esp32_frame_ingress_live: true
     frame_ingress_mode: live_camera_stream
     forward_hardware_commands: true
-    hardware_execution_mode: ros2_control_live
+    hardware_execution_mode: ros2_control_candidate
     execution_backbone: ros2_control
-    execution_backbone_declared: false
+    execution_backbone_declared: true
     enable_ros2_control: true
     stm32_authoritative_simulation: false
     validated_live_backbone: validated_live
+    live_stage: control
   real_validated_live:
     intended_product_line: validated_live
     simulate_hardware: false
@@ -390,10 +472,11 @@ runtime_lanes:
     forward_hardware_commands: true
     hardware_execution_mode: ros2_control_live
     execution_backbone: ros2_control
-    execution_backbone_declared: false
+    execution_backbone_declared: true
     enable_ros2_control: true
     stm32_authoritative_simulation: false
     validated_live_backbone: validated_live
+    live_stage: validated_live
 task_templates:
 - id: pick-red
   name: 抓取红色目标
@@ -409,6 +492,16 @@ task_templates:
   risk_level: low
   required_runtime_tier: validated_sim
   operator_hint: 适合单目标验证链路与基础抓取验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:red
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
 - id: pick-blue
   name: 抓取蓝色目标
   description: 单目标抓取并放置到蓝色料区。
@@ -423,6 +516,16 @@ task_templates:
   risk_level: low
   required_runtime_tier: validated_sim
   operator_hint: 适合单目标验证链路与基础抓取验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:blue
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
 - id: pick-green
   name: 抓取绿色目标
   description: 单目标抓取并放置到绿色料区。
@@ -437,6 +540,16 @@ task_templates:
   risk_level: low
   required_runtime_tier: validated_sim
   operator_hint: 适合绿色类目标的单目标搬运验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:green
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
 - id: sort-color
   name: 按颜色分拣
   description: 按颜色选择器进行分拣，红/蓝/绿目标分别落入对应料区。
@@ -455,6 +568,17 @@ task_templates:
   risk_level: medium
   required_runtime_tier: validated_sim
   operator_hint: 需要颜色目标检测链路稳定。
+  capability_tags:
+  - sort
+  - color
+  - multi_selector
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: selector_routed
+  plugin_key: selector_routed
 - id: sort-qr
   name: 二维码识别搬运
   description: 根据二维码选择目标，当前统一落到默认料区，不宣称多料区二维码分拣能力。
@@ -473,6 +597,17 @@ task_templates:
   risk_level: medium
   required_runtime_tier: validated_sim
   operator_hint: 当前二维码任务仅保证识别触发与默认料区搬运语义。
+  capability_tags:
+  - sort
+  - qr
+  - multi_selector
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: selector_routed
+  plugin_key: selector_routed
 - id: clear-table
   name: 清台任务
   description: 持续抓取当前工作台上全部可执行目标并放置到默认料区。
@@ -485,6 +620,16 @@ task_templates:
   risk_level: high
   required_runtime_tier: validated_sim
   operator_hint: 连续搬运任务，对感知、规划与执行链路稳定性要求更高。
+  capability_tags:
+  - clear_table
+  - continuous
+  - multi_target
+  preconditions:
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: continuous
+  plugin_key: continuous
 validated_live_backbones:
   validated_live:
     lane: real_validated_live
@@ -497,5 +642,174 @@ validated_live_backbones:
       grasp_provider_mode: runtime_service
       forward_hardware_commands: true
       execution_backbone: ros2_control
-      execution_backbone_declared: true
       enable_ros2_control: true
+      hardware_execution_mode: ros2_control_live
+    owner: arm_control_bringup
+    controller_manager_package: arm_control_bringup
+    hardware_interface_package: arm_hardware_interface
+    moveit_backend_profile: validated_live_bridge
+    release_gate_profile: validated_live
+validated_live_release_slice:
+  lane: real_validated_live
+  bringup_launch: arm_bringup/launch/runtime_real_validated_live.launch.py
+  target_env_script: scripts/ros_target_validation.sh
+  target_gate_report: artifacts/release_gates/target_runtime_gate.json
+  hil_checklist_artifact: artifacts/hil/hil_checklist.json
+  release_checklist_artifact: docs/evidence/validated_live/release_checklist.md
+  smoke_tests:
+  - backend/embodied_arm_ws/tests/test_ros_launch_smoke.py
+  - backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py
+  - backend/embodied_arm_ws/tests/test_runtime_lane_validated_live.py
+  - backend/embodied_arm_ws/tests/test_moveit_validated_live_fail_closed.py
+  rollback_lane: sim_authoritative
+runtime_lane_aliases:
+  compatibility:
+    official_runtime:
+      lane: sim_preview
+      release_track: official_active
+      lifecycle: compatibility
+    sim:
+      lane: sim_preview
+      release_track: official_active
+      lifecycle: compatibility
+    authoritative_runtime:
+      lane: sim_authoritative
+      release_track: official_active
+      lifecycle: compatibility
+    sim_validated:
+      lane: sim_authoritative
+      release_track: official_active
+      lifecycle: compatibility
+    sim_perception_realistic:
+      lane: sim_perception_preview
+      release_track: official_active
+      lifecycle: compatibility
+    real:
+      lane: real_preview
+      release_track: official_active
+      lifecycle: compatibility
+    hybrid:
+      lane: hybrid_preview
+      release_track: official_active
+      lifecycle: compatibility
+    hw:
+      lane: hw_preview
+      release_track: official_active
+      lifecycle: compatibility
+    full_demo:
+      lane: full_demo_preview
+      release_track: official_active
+      lifecycle: compatibility
+    full_demo_validated:
+      lane: full_demo_authoritative
+      release_track: official_active
+      lifecycle: compatibility
+  experimental:
+    experimental_real_candidate:
+      lane: live_control
+      release_track: experimental
+      lifecycle: experimental
+    experimental_real_validated_live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: experimental
+    experimental_validated_live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: experimental
+    experimental_live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: experimental
+    experimental_live_proto:
+      lane: live_proto
+      release_track: experimental
+      lifecycle: experimental
+    experimental_real_proto:
+      lane: live_proto
+      release_track: experimental
+      lifecycle: experimental
+    experimental_live_control:
+      lane: live_control
+      release_track: experimental
+      lifecycle: experimental
+  retired:
+    real_authoritative:
+      lane: live_control
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_candidate
+      retirement_phase: 2026-q4
+    real_authoritative_live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_validated_live
+      retirement_phase: 2026-q4
+    real_validated:
+      lane: live_control
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_candidate
+      retirement_phase: 2026-q4
+    validated_live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_validated_live
+      retirement_phase: 2026-q4
+    live:
+      lane: real_validated_live
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_validated_live
+      retirement_phase: 2026-q4
+    real_proto:
+      lane: live_proto
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_real_proto
+      retirement_phase: 2026-q4
+    real_control:
+      lane: live_control
+      release_track: experimental
+      lifecycle: retired_compatibility
+      replacement: experimental_live_control
+      retirement_phase: 2026-q4
+firmware_semantic_profiles:
+  esp32:
+    default_profile: preview_reserved
+    profiles:
+      preview_reserved:
+        source_lane: sim_preview
+        camera_available: false
+        frame_ingress_live: false
+        stream_semantic: reserved
+        frame_ingress_mode: reserved_endpoint
+        stream_delivery_model: control_plane_only
+        stream_control_plane: esp32_metadata_bridge
+        stream_message: preview reserved profile keeps /stream in control-plane-only
+          mode until an authoritative lane declares live ingress
+        hostname: esp32.local
+      validated_sim_synthetic:
+        source_lane: sim_authoritative
+        camera_available: true
+        frame_ingress_live: true
+        stream_semantic: synthetic_frame
+        frame_ingress_mode: synthetic_frame_stream
+        stream_delivery_model: synthetic_preview
+        stream_control_plane: esp32_metadata_bridge
+        stream_message: validated_sim profile publishes synthetic frame ingress metadata
+          for authoritative simulation
+        hostname: esp32.local
+      validated_live_external_bridge:
+        source_lane: real_validated_live
+        camera_available: true
+        frame_ingress_live: true
+        stream_semantic: live_frame_summary
+        frame_ingress_mode: live_camera_stream
+        stream_delivery_model: external_bridge_required
+        stream_control_plane: esp32_metadata_bridge
+        stream_message: validated_live profile expects an external camera bridge to
+          supply authoritative live ingress while ESP32 publishes board metadata
+        hostname: esp32.local

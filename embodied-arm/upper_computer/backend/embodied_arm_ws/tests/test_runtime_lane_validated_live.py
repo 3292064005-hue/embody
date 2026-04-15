@@ -138,16 +138,16 @@ def _write_validated_live_evidence(
     )
 
 
-def test_real_candidate_lane_is_fail_closed_until_backend_declared() -> None:
-    spec = get_runtime_lane_spec('real_candidate')
+def test_live_control_lane_keeps_preview_until_promotion_receipt_even_with_declared_backend() -> None:
+    spec = get_runtime_lane_spec('live_control')
     assert spec.enable_moveit is True
     assert spec.enable_ros2_control is True
-    assert spec.hardware_execution_mode == 'ros2_control_live'
+    assert spec.hardware_execution_mode == 'ros2_control_candidate'
     assert spec.execution_backbone == 'ros2_control'
-    assert spec.execution_backbone_declared is False
+    assert spec.execution_backbone_declared is True
     assert spec.planning_capability == 'validated_live'
     assert spec.planning_backend_name == 'validated_live_bridge'
-    assert spec.planning_backend_declared is False
+    assert spec.planning_backend_declared is True
     assert spec.public_runtime_tier == 'preview'
     assert spec.task_workbench_visible is False
     assert spec.task_execution_interactive is False
@@ -347,7 +347,66 @@ def test_missing_runtime_profiles_file_fails_fast(monkeypatch, tmp_path: Path) -
         raise AssertionError('missing runtime profile artifact must fail fast')
 
 
-def test_real_authoritative_alias_resolves_to_real_candidate() -> None:
-    candidate = get_runtime_lane_spec('real_candidate')
+def test_real_authoritative_alias_requires_explicit_opt_in(monkeypatch) -> None:
+    monkeypatch.delenv('EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES', raising=False)
+    try:
+        get_runtime_lane_spec('real_authoritative')
+    except RuntimeError as exc:
+        assert 'legacy live alias' in str(exc)
+        assert 'experimental_real_candidate' in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError('retired live alias must fail without explicit opt-in')
+
+
+def test_real_authoritative_alias_can_be_temporarily_reenabled(monkeypatch) -> None:
+    monkeypatch.setenv('EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES', 'true')
+    candidate = get_runtime_lane_spec('live_control')
     alias = get_runtime_lane_spec('real_authoritative')
     assert alias == candidate
+
+
+
+def test_missing_runtime_authority_file_fails_fast(monkeypatch, tmp_path: Path) -> None:
+    missing_authority = tmp_path / 'missing_runtime_authority.yaml'
+    monkeypatch.setenv('EMBODIED_ARM_RUNTIME_AUTHORITY_FILE', str(missing_authority))
+    import arm_bringup.launch_factory as launch_factory
+
+    launch_factory = importlib.reload(launch_factory)
+    try:
+        launch_factory.runtime_lane_governance_manifest()
+    except RuntimeError as exc:
+        assert 'runtime authority metadata is required' in str(exc)
+        assert 'NameError' not in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError('missing runtime authority must fail fast')
+
+
+def test_missing_planning_backend_profiles_file_fails_fast(monkeypatch, tmp_path: Path) -> None:
+    missing_backends = tmp_path / 'missing_planning_backend_profiles.yaml'
+    monkeypatch.setenv('EMBODIED_ARM_PLANNING_BACKENDS_FILE', str(missing_backends))
+    import arm_bringup.launch_factory as launch_factory
+
+    launch_factory = importlib.reload(launch_factory)
+    try:
+        launch_factory.get_runtime_lane_spec('live_control')
+    except RuntimeError as exc:
+        assert 'planning backend profile metadata is required' in str(exc)
+        assert 'NameError' not in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError('missing planning backend metadata must fail fast')
+
+
+def test_runtime_real_authoritative_wrapper_uses_retired_alias_gate(monkeypatch) -> None:
+    monkeypatch.delenv('EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES', raising=False)
+    wrapper_path = ROOT / 'arm_bringup' / 'launch' / 'runtime_real_authoritative.launch.py'
+    spec = importlib.util.spec_from_file_location('retired_wrapper', wrapper_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    try:
+        module.generate_launch_description()
+    except RuntimeError as exc:
+        assert 'legacy live alias' in str(exc)
+        assert 'EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES=true' in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError('retired wrapper must preserve the explicit opt-in gate')

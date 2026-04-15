@@ -95,4 +95,4 @@ class RuntimeProjectionService:
 
     def initial_snapshot_events(self) -> list[ProjectionEvent]:
         """Return the canonical websocket bootstrap snapshot."""
-        return self.build_events('system', 'readiness', 'targets', 'vision_frame', 'task', 'hardware', 'diagnostics')
+        return self.build_events('system', 'readiness', 'targets', 'vision_frame', 'task', 'hardware', 'diagnostics', 'calibration')

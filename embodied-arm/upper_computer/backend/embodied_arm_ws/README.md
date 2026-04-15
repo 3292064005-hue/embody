@@ -37,14 +37,15 @@ ROS2 backend workspace for the embodied robotic arm project.
 ## Runtime contract migration
 
 - `arm_interfaces` is the sole authoritative interface source.
-- `arm_msgs` remains a deprecated mirror for compatibility only.
+- `arm_msgs` remains a deprecated mirror for compatibility-only consumers and mirror verification; the active runtime stack imports `arm_interfaces` only.
 - Readiness / task status / diagnostics summary / calibration profile / target array now publish typed shadow topics alongside legacy JSON compatibility topics.
 - Gateway consumes typed topics first and falls back to JSON compatibility topics when typed contracts are unavailable.
 
 ## Quick start
 
 ```bash
-colcon build --symlink-install
+ACTIVE_PACKAGES=$(python ../../scripts/print_active_ros_packages.py)
+colcon build --symlink-install --packages-up-to $ACTIVE_PACKAGES
 source install/setup.bash
 ros2 launch arm_bringup runtime_sim.launch.py
 ```
@@ -63,9 +64,10 @@ For a real target-environment check on Ubuntu 22.04 + ROS 2 Humble, run:
 
 ```bash
 source /opt/ros/humble/setup.bash
-colcon build --symlink-install
+ACTIVE_PACKAGES=$(python ../../scripts/print_active_ros_packages.py)
+colcon build --symlink-install --packages-up-to $ACTIVE_PACKAGES
 source install/setup.bash
-pytest -q tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py
+pytest -q -c pytest-active.ini tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py
 ```
 
 Or from the repository root:

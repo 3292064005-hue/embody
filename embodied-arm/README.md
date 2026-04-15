@@ -1,6 +1,6 @@
 # Embodied Arm — Split Delivery (Upper Computer / ESP32-S3 / STM32F103C8)
 
-本交付把原始一体化仓库拆成三部分，同时保留原项目中的协议、状态字段、命令语义、启动默认值与文档：
+本交付把原始一体化仓库拆成三部分，同时保留原项目中的协议、状态字段、命令语义与文档；runtime lane / firmware 默认值现统一由 `runtime_authority.yaml` 生成：
 
 - `upper_computer/`：上位机，保留原始 `frontend + gateway + backend/embodied_arm_ws + docs + scripts` 运行形态
 - `esp32s3_platformio/`：ESP32-S3 PlatformIO 固件，承接原项目中的 Wi‑Fi / stream endpoint / board health / voice event 扩展语义
@@ -12,7 +12,7 @@
 - 保留原始目录与启动方式：`frontend/`、`gateway/`、`backend/embodied_arm_ws/`
 - 保留原始 runtime lane 约束与兼容别名：
   - `stm32_port=/dev/ttyUSB0`
-  - `esp32_stream_endpoint=http://esp32.local/stream`
+  - `esp32_stream_endpoint=http://esp32.local/stream`（generic firmware 默认语义由 authority 生成的 preview_reserved profile 提供）
   - `real_preview/hybrid_preview` 相机链仍由 `/arm/camera/image_raw` 进入上位机
   - 历史 `sim/real/hybrid/hw/full_demo` 名称仍可用，但都会映射到新的 `*_preview` canonical lanes
 - 保留 `docs/`、`scripts/`、`generated runtime contract` 等原有工程资产
@@ -21,7 +21,7 @@
 - 对应原项目中的：
   - `arm_hardware_bridge/esp32_link_node.py`
   - `arm_esp32_gateway/*`
-  - `launch_factory.py` 中 `esp32_stream_endpoint=http://esp32.local/stream`
+  - `launch_factory.py` 中 `esp32_stream_endpoint=http://esp32.local/stream`（generic firmware 默认语义由 authority 生成的 preview_reserved profile 提供）
 - 固件提供：
   - `/healthz`
   - `/status`
@@ -29,7 +29,7 @@
   - `/voice/events`
   - `/voice/phrase`
   - `/voice/commands`
-- 保留 Wi‑Fi transport、stream endpoint、board health、voice event 的原始语义；但当前 `/stream` 默认为 reserved endpoint，不伪装成真实视觉帧链
+- 保留 Wi‑Fi transport、stream endpoint、board health、voice event 的原始语义；但当前 `/stream` 默认由 authority 生成的 `preview_reserved` profile 驱动，保持 reserved endpoint，不伪装成真实视觉帧链
 
 ### STM32F103C8
 - 对应原项目中的：
@@ -53,13 +53,13 @@
 2. 再烧录 `stm32f103c8_platformio/`，接入 `/dev/ttyUSB0`
 3. 再烧录 `esp32s3_platformio/`，确认 `http://esp32.local/stream` 与 `/healthz`；注意 `/stream` 当前只代表 reserved endpoint 语义
 4. 最后把上位机 runtime lane 切到 `hybrid_preview/real_preview`（历史 `hybrid/real` 名称仍可用）
-5. 若已接好 live planning backend 与真实硬件反馈链，再使用 `runtime_real_authoritative.launch.py` 进入 `real_authoritative`；若 backend 未声明或 readiness 不通过，系统保持 preview-tier 且禁止交互式 task 执行
+5. live hardware lanes 已从正式交付主链中隔离为 **experimental**；默认交付仅支持 `*_preview` 与 `*_authoritative` 仿真主线。若内部实验需要启用 live skeleton，请显式使用 `experimental_*` 别名或 `live_control/real_validated_live` canonical lanes；历史 `real_authoritative` / `validated_live` / `live` alias 与 `runtime_real_authoritative.launch.py` 兼容入口默认退休，仅在设置 `EMBODIED_ARM_ALLOW_LEGACY_LIVE_ALIASES=true` 时用于迁移；若 backend 未声明或 readiness 不通过，系统保持 preview-tier 且禁止交互式 task 执行
 
 更细的映射与集成说明见 `docs/split_mapping.md`。
 
 > 当前默认 `*_preview` lane 不提供 authoritative planning，也不会把 task execution 转发到硬件 dispatcher；maintenance/manual 控制仍按独立命令策略运行。
-> 若需要仓内已验证的 authoritative simulation 主线，可切换到 `sim_authoritative` 或 `full_demo_authoritative`，此时 `motion_executor -> dispatcher -> feedback(command_id)` 主链路会显式打开；scene/grasp provider 仍维持 embedded-core，`ros2_control` 仍不计入正式 execution authority。
-> 若接入真实相机/串口链并显式提供 live planning backend，可切到 `real_authoritative`；该 lane 对 live backend 采用 fail-closed 语义，不会降级为 fallback contract。
+> 若需要仓内已验证的 authoritative simulation 主线，可切换到 `sim_authoritative` 或 `full_demo_authoritative`，此时 `motion_executor -> dispatcher -> feedback(command_id)` 主链路会显式打开；scene/grasp provider 已切到 `runtime_service`，`ros2_control` 仍不计入正式 execution authority。
+> `live_control / real_validated_live` 仍保留为 experimental live skeleton，用于显式实验，不再计入正式交付 runtime 清单。
 
 
 ## 根级验证与打包
@@ -76,3 +76,8 @@
 - `THIRD_PARTY_NOTICES.md`：第三方参考与后续 vendoring 规则
 - `third_party/UPSTREAM_INDEX.md`：上游来源索引
 - `scripts/verify_third_party_governance.py`：治理完整性校验
+
+
+## Active ROS overlay
+
+正式构建/冒烟入口会先通过 `upper_computer/scripts/materialize_active_ros_overlay.py` 生成 `upper_computer/backend/embodied_arm_ws/.active_overlay/`，只暴露 active runtime 包及其仓内依赖闭包，compatibility / experimental 包不再进入默认 build surface。

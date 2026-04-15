@@ -114,7 +114,7 @@ async function emitEmergencyStop() {
       });
     }
     await systemStore.emergencyStop();
-    ElNotification.warning({ title: '急停请求已发送', message: '请以后端网关和硬件状态回执为准。' });
+    ElNotification.warning({ title: systemStore.localPreviewOnly ? '急停仅做本地 preview 投影' : '急停请求已发送', message: systemStore.localPreviewOnly ? (systemStore.localPreviewMessage || '当前急停命令仅做本地 preview 投影，未下发到权威运行时。') : '请以后端网关和硬件状态回执为准。' });
   } catch {
     // canceled or blocked
   }

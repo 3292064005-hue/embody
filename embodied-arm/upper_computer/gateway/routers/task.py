@@ -8,7 +8,7 @@ from ..errors import ApiException, ErrorCode, FailureClass
 from ..lifespan import context_from_request
 from ..models import new_correlation_id, new_request_id, wrap_response
 from ..task_catalog import product_line_capabilities, public_task_templates, resolve_task_request
-from ..schemas import StartTaskRequest
+from ..schemas import StartTaskRequest, StartTaskResponseEnvelope
 from ..readiness_snapshot import readiness_stale_reason
 from ..security import PolicyResult, validate_start_task
 
@@ -32,7 +32,7 @@ async def get_task_history(request: Request):
     return wrap_response(ctx.state.get_task_history(), request_id_from_request(request))
 
 
-@router.post('/api/task/start')
+@router.post('/api/task/start', response_model=StartTaskResponseEnvelope)
 async def post_task_start(body: StartTaskRequest, request: Request):
     ctx = context_from_request(request)
     request_id = request_id_from_request(request)
@@ -86,15 +86,16 @@ async def post_task_start(body: StartTaskRequest, request: Request):
         )
     correlation_id = new_correlation_id()
     task_run_id = new_request_id('taskrun')
+    episode_id = new_request_id('episode')
 
     def mutate_task_state(effective_ctx, transport_result):
-        current = effective_ctx.state.start_task(transport_result['task_id'], frontend_task_type, target_category, request_id=request_id, correlation_id=correlation_id, task_run_id=task_run_id, template_id=resolved.template_id, place_profile=place_profile, runtime_tier=runtime_tier)
+        current = effective_ctx.state.start_task(transport_result['task_id'], frontend_task_type, target_category, request_id=request_id, correlation_id=correlation_id, task_run_id=task_run_id, episode_id=episode_id, template_id=resolved.template_id, place_profile=place_profile, runtime_tier=runtime_tier, graph_key=resolved.graph_key)
         return [('task.progress.updated', current)]
 
     async def return_transport_result():
         return result
 
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='task.start',
             payload=body.model_dump(),
@@ -105,7 +106,7 @@ async def post_task_start(body: StartTaskRequest, request: Request):
         ),
         return_transport_result,
     )
-    return wrap_response({'taskId': result['task_id'], 'taskRunId': task_run_id, 'templateId': resolved.template_id, 'runtimeTier': runtime_tier, 'productLine': current_product_line.get('label', runtime_tier)}, request_id, correlation_id)
+    return wrap_response({'taskId': result['task_id'], 'taskRunId': task_run_id, 'episodeId': episode_id, 'templateId': resolved.template_id, 'pluginKey': resolved.plugin_key, 'graphKey': resolved.graph_key, 'runtimeTier': runtime_tier, 'productLine': current_product_line.get('label', runtime_tier)}, request_id, correlation_id)
 
 
 @router.post('/api/task/stop')
@@ -113,7 +114,7 @@ async def post_task_stop(request: Request):
     ctx = context_from_request(request)
     request_id = request_id_from_request(request)
     command = GatewayCommandService(request, ctx=ctx)
-    await command.execute(
+    result = await command.execute(
         CommandExecutionPlan(
             action='task.stop',
             required_role='operator',
@@ -123,4 +124,4 @@ async def post_task_stop(request: Request):
         ),
         ctx.ros.stop_task,
     )
-    return wrap_response(None, request_id)
+    return wrap_response(result, request_id)

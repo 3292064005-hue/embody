@@ -32,6 +32,9 @@ class FirmwareApp {
     state_.stream_endpoint = String("http://") + state_.hostname + ".local" + kStreamPath;
     state_.camera_serial = kCameraSerial;
     state_.mode = kDefaultMode;
+    state_.camera_available = kCameraAvailable;
+    state_.frame_ingress_live = kFrameIngressLive;
+    state_.stream_semantic = kStreamSemantic;
 
     initPeripherals();
     connectWifi();
@@ -137,24 +140,32 @@ class FirmwareApp {
       doc["ok"] = true;
       doc["phrase"] = phrase;
       doc["topic"] = "/arm/voice/events";
+      doc["telemetryOnly"] = true;
+      doc["actionExecutionBound"] = false;
+      doc["routing"] = "observability_only";
       respondJson(doc);
     });
     server_.on(kStreamPath, HTTP_GET, [this]() {
       JsonDocument doc;
       doc["available"] = state_.camera_available;
-      doc["message"] = state_.camera_available
-                            ? "camera-backed stream transport is provided by dedicated camera firmware or an external bridge"
-                            : "stream endpoint reserved for camera firmware or external bridge";
+      doc["message"] = kStreamMessage;
       doc["streamPath"] = kStreamPath;
       doc["streamSemantic"] = state_.stream_semantic;
       doc["streamReserved"] = state_.stream_semantic == "reserved";
       doc["frameIngressLive"] = state_.frame_ingress_live;
-      doc["frameIngressMode"] = state_.frame_ingress_live ? "live_camera_stream" : "reserved_endpoint";
-      doc["deliveryModel"] = state_.camera_available ? "external_bridge_required" : "metadata_only";
+      doc["frameIngressMode"] = kFrameIngressMode;
+      doc["deliveryModel"] = kStreamDeliveryModel;
+      doc["controlPlane"] = kStreamControlPlane;
       doc["supportsMjpeg"] = false;
+      doc["dataPlaneAvailable"] = false;
+      doc["dataPlaneMode"] = "metadata_only";
+      doc["streamEndpointRole"] = "metadata_control_plane";
+      doc["renderableFrameProvided"] = false;
+      doc["metadataEndpoint"] = kStreamPath;
+      doc["snapshotEndpoint"] = "";
       doc["streamEndpoint"] = state_.stream_endpoint;
       doc["cameraSerial"] = state_.camera_serial;
-      respondJson(doc, state_.camera_available ? 200 : 501);
+      respondJson(doc, state_.camera_available ? 200 : 503);
     });
     server_.onNotFound([this]() {
       JsonDocument doc;
@@ -272,6 +283,13 @@ class FirmwareApp {
     doc["stream_reserved"] = state_.stream_semantic == "reserved";
     doc["frame_ingress_live"] = state_.frame_ingress_live;
     doc["camera_serial"] = state_.camera_serial;
+    doc["frame_ingress_mode"] = kFrameIngressMode;
+    doc["delivery_model"] = kStreamDeliveryModel;
+    doc["control_plane"] = kStreamControlPlane;
+    doc["data_plane_available"] = false;
+    doc["data_plane_mode"] = "metadata_only";
+    doc["stream_endpoint_role"] = "metadata_control_plane";
+    doc["renderable_frame_provided"] = false;
     doc["heartbeat_counter"] = state_.heartbeat_counter;
     doc["uptime_ms"] = state_.uptime_ms;
     doc["wifi_connected"] = state_.wifi_connected;
@@ -295,6 +313,7 @@ class FirmwareApp {
     doc["topic"] = "/arm/hardware/esp32_link";
     doc["transport"] = "wifi";
     doc["voice_topic"] = "/arm/voice/events";
+    doc["voice_control_mode"] = "telemetry_only";
     doc["status_notifier_state"] = state_.wifi_connected ? "online" : "degraded";
     if (include_voice) {
       JsonArray history = doc["voice_history"].to<JsonArray>();
@@ -311,18 +330,27 @@ class FirmwareApp {
   JsonDocument buildVoiceEventsDocument() const {
     JsonDocument doc;
     doc["topic"] = "/arm/voice/events";
+    doc["telemetryOnly"] = true;
+    doc["actionExecutionBound"] = false;
+    doc["routing"] = "observability_only";
     JsonArray events = doc["events"].to<JsonArray>();
     for (const auto& item : state_.voice_history) {
       JsonObject entry = events.add<JsonObject>();
       entry["phrase"] = item.phrase;
       entry["source"] = item.source;
       entry["stamp_ms"] = item.stamp_ms;
+      entry["telemetryOnly"] = true;
+      entry["actionExecutionBound"] = false;
     }
     return doc;
   }
 
   JsonDocument buildVoiceCommandsDocument() const {
     JsonDocument doc;
+    doc["telemetryOnly"] = true;
+    doc["actionExecutionBound"] = false;
+    doc["routing"] = "observability_only";
+    doc["message"] = "voice phrases are mirrored to observability only and do not trigger motion execution directly";
     JsonArray commands = doc["commands"].to<JsonArray>();
     commands.add("start");
     commands.add("stop");

@@ -128,7 +128,13 @@ class CameraDriverNode:
         Raises:
             Does not raise.
         """
-        return {'sourceType': self.source_type, 'topicName': self.topic_name, 'deviceIndex': self.device_index, 'mockProfile': self.mock_profile if self.source_type == 'mock' else ''}
+        return {
+            'sourceType': self.source_type,
+            'sourceClass': 'synthetic' if self.source_type == 'mock' else 'live',
+            'topicName': self.topic_name,
+            'deviceIndex': self.device_index,
+            'mockProfile': self.mock_profile if self.source_type == 'mock' else '',
+        }
 
 
 def main(args=None) -> None:

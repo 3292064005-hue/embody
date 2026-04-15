@@ -18,6 +18,52 @@ from .generated.runtime_contract import PRODUCT_LINE_CAPABILITIES, TASK_CAPABILI
 _MANIFEST_PATH = Path(__file__).resolve().parents[1] / 'docs' / 'generated' / 'runtime_contract_manifest.json'
 
 
+class TaskCapabilityPlugin:
+    """Resolve one task template into one executable transport contract."""
+
+    key = 'single_target'
+
+    def resolve(self, template: dict[str, Any], target_category: str | None) -> tuple[str | None, str]:
+        allowed_categories = [str(value) for value in template.get('allowedTargetCategories', []) if str(value).strip()]
+        resolved_target = str(target_category).strip() if target_category not in (None, '') else None
+        if allowed_categories:
+            resolved_target = resolved_target or str(template.get('defaultTargetCategory', '') or '') or None
+            if resolved_target not in allowed_categories:
+                raise ValueError(
+                    f"template {template['id']} does not allow target category {resolved_target!r}; "
+                    f"allowed: {', '.join(allowed_categories)}"
+                )
+        else:
+            resolved_target = None
+        resolved_profiles = {str(key): str(value) for key, value in dict(template.get('resolvedPlaceProfiles', {}) or {}).items()}
+        if resolved_target:
+            place_profile = resolved_profiles.get(resolved_target)
+            if not place_profile:
+                raise ValueError(f"template {template['id']} does not define a place profile for target category {resolved_target!r}")
+            return resolved_target, str(place_profile)
+        return None, str(resolved_profiles.get('default', 'default') or 'default')
+
+
+class SelectorRoutedPlugin(TaskCapabilityPlugin):
+    key = 'selector_routed'
+
+
+class ContinuousTaskPlugin(TaskCapabilityPlugin):
+    key = 'continuous'
+
+    def resolve(self, template: dict[str, Any], target_category: str | None) -> tuple[str | None, str]:
+        del target_category
+        resolved_profiles = {str(key): str(value) for key, value in dict(template.get('resolvedPlaceProfiles', {}) or {}).items()}
+        return None, str(resolved_profiles.get('default', 'default') or 'default')
+
+
+PLUGIN_REGISTRY: dict[str, TaskCapabilityPlugin] = {
+    'single_target': TaskCapabilityPlugin(),
+    'selector_routed': SelectorRoutedPlugin(),
+    'continuous': ContinuousTaskPlugin(),
+}
+
+
 @dataclass(frozen=True)
 class ResolvedTaskRequest:
     """Resolved task-start payload derived from the authoritative catalog.
@@ -31,6 +77,7 @@ class ResolvedTaskRequest:
         required_runtime_tier: Minimum runtime tier required for the template.
         risk_level: Public operator-facing risk marker.
         task_profile_path: Backend task profile path declared by the catalog.
+        plugin_key: Capability-plugin identifier used to resolve the request.
     """
 
     template_id: str
@@ -41,6 +88,8 @@ class ResolvedTaskRequest:
     required_runtime_tier: str
     risk_level: str
     task_profile_path: str
+    plugin_key: str
+    graph_key: str
 
 
 def _fallback_manifest() -> dict[str, Any]:
@@ -128,6 +177,12 @@ def public_task_templates() -> list[dict[str, Any]]:
             'riskLevel': str(item.get('riskLevel', 'medium')),
             'requiredRuntimeTier': str(item.get('requiredRuntimeTier', 'validated_sim')),
             'operatorHint': str(item.get('operatorHint', '')),
+            'capabilityTags': list(item.get('capabilityTags', []) or []),
+            'preconditions': list(item.get('preconditions', []) or []),
+            'sequenceMode': str(item.get('sequenceMode', 'single_target')),
+            'pluginKey': str(item.get('pluginKey', item.get('sequenceMode', 'single_target')) or 'single_target'),
+            'graphKey': str(item.get('graphKey', '') or ''),
+            'taskGraph': dict(item.get('taskGraph', {}) or {}),
         })
     return templates
 
@@ -195,25 +250,11 @@ def resolve_task_request(*, template_id: str | None, task_type: str | None, targ
         if resolved_template is None:
             raise ValueError(f'unsupported taskType: {normalized_type}')
 
-    allowed_categories = [str(value) for value in resolved_template.get('allowedTargetCategories', []) if str(value).strip()]
-    resolved_target = str(target_category).strip() if target_category not in (None, '') else None
-    if allowed_categories:
-        resolved_target = resolved_target or str(resolved_template.get('defaultTargetCategory', '') or '') or None
-        if resolved_target not in allowed_categories:
-            raise ValueError(
-                f'template {resolved_template["id"]} does not allow target category {resolved_target!r}; '
-                f'allowed: {", ".join(allowed_categories)}'
-            )
-    else:
-        resolved_target = None
-
-    resolved_profiles = {str(key): str(value) for key, value in dict(resolved_template.get('resolvedPlaceProfiles', {}) or {}).items()}
-    if resolved_target:
-        place_profile = resolved_profiles.get(resolved_target)
-        if not place_profile:
-            raise ValueError(f'template {resolved_template["id"]} does not define a place profile for target category {resolved_target!r}')
-    else:
-        place_profile = resolved_profiles.get('default', 'default')
+    plugin_key = str(resolved_template.get('pluginKey', resolved_template.get('sequenceMode', 'single_target')) or 'single_target')
+    plugin = PLUGIN_REGISTRY.get(plugin_key)
+    if plugin is None:
+        raise ValueError(f'unknown task capability plugin: {plugin_key}')
+    resolved_target, place_profile = plugin.resolve(resolved_template, target_category)
 
     return ResolvedTaskRequest(
         template_id=str(resolved_template['id']),
@@ -224,4 +265,6 @@ def resolve_task_request(*, template_id: str | None, task_type: str | None, targ
         required_runtime_tier=str(resolved_template.get('requiredRuntimeTier', 'validated_sim')),
         risk_level=str(resolved_template.get('riskLevel', 'medium')),
         task_profile_path=str(resolved_template.get('taskProfilePath', '')),
+        plugin_key=plugin_key,
+        graph_key=str(resolved_template.get('graphKey', resolved_template.get('id', 'unknown-task-graph'))),
     )

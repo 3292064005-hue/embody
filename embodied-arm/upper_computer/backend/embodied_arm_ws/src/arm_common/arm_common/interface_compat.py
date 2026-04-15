@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-"""Compatibility imports for ROS2 interfaces.
+"""Canonical imports for ROS2 interfaces.
 
-Prefer ``arm_interfaces`` and fall back to the deprecated ``arm_msgs`` mirror
-while the migration is still in progress.
+The active runtime stack resolves message, service, and action contracts from
+``arm_interfaces`` only. Deprecated mirror packages remain in the repository for
+legacy consumers and mirror-verification tests, but the active stack no longer
+falls back to them at runtime.
 """
 
 from importlib import import_module
@@ -14,22 +16,20 @@ from typing import Iterable
 _ACTIVE_PACKAGE: str | None = None
 
 
-def _load(package: str, kind: str) -> ModuleType:
-    return import_module(f'{package}.{kind}')
+def _load(kind: str) -> ModuleType:
+    return import_module(f'arm_interfaces.{kind}')
 
 
 def _resolve(kind: str, names: Iterable[str]) -> tuple:
     global _ACTIVE_PACKAGE
-    last_error: Exception | None = None
-    for package in ('arm_interfaces', 'arm_msgs'):
-        try:
-            module = _load(package, kind)
-            values = tuple(getattr(module, name) for name in names)
-            _ACTIVE_PACKAGE = package
-            return values
-        except Exception as exc:  # pragma: no cover - depends on ROS environment
-            last_error = exc
-    return tuple(object for _ in names)
+    try:
+        module = _load(kind)
+        values = tuple(getattr(module, name) for name in names)
+        _ACTIVE_PACKAGE = 'arm_interfaces'
+        return values
+    except Exception:  # pragma: no cover - depends on ROS environment
+        _ACTIVE_PACKAGE = None
+        return tuple(object for _ in names)
 
 
 class MsgTypes:

@@ -60,6 +60,7 @@ def collect() -> dict[str, Any]:
         gate_report,
         ROOT / 'artifacts' / 'repository_validation',
         ROOT / 'artifacts' / 'repository_validation' / 'repo' / 'verification_summary.json',
+        ROOT / 'artifacts' / 'release_gates' / 'runtime_baseline_report.json',
         ROOT / 'docs' / 'generated' / 'runtime_contract_manifest.json',
         ROOT / 'docs' / 'generated' / 'runtime_contract_summary.md',
         ROOT / 'docs' / 'HIL_CHECKLIST.md',

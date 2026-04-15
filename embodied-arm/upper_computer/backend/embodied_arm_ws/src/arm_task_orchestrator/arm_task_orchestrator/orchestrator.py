@@ -19,6 +19,34 @@ class TaskOrchestrator:
     def __init__(self, profile: TaskProfile) -> None:
         self.profile = profile
 
+    @staticmethod
+    def _graph_spec(context: TaskContext) -> dict:
+        return dict(context.metadata.get('taskGraph') or {}) if isinstance(context.metadata, dict) else {}
+
+    @classmethod
+    def _graph_stage(cls, context: TaskContext, *, node_id: str | None = None, kind: str | None = None, default_stage: str = '') -> str:
+        graph = cls._graph_spec(context)
+        nodes = graph.get('nodes', []) if isinstance(graph.get('nodes'), list) else []
+        for item in nodes:
+            if not isinstance(item, dict):
+                continue
+            if node_id and str(item.get('id', '')) == str(node_id):
+                return str(item.get('stage', default_stage) or default_stage)
+            if kind and str(item.get('kind', '')) == str(kind):
+                return str(item.get('stage', default_stage) or default_stage)
+        return default_stage
+
+    @classmethod
+    def _set_graph_node(cls, context: TaskContext, *, node_id: str | None = None, kind: str | None = None, default_stage: str = '') -> str:
+        stage = cls._graph_stage(context, node_id=node_id, kind=kind, default_stage=default_stage)
+        context.stage = stage
+        if isinstance(context.metadata, dict):
+            context.metadata['activeGraphNode'] = str(node_id or kind or '')
+            context.metadata['activeGraphStage'] = stage
+        if not context.stage_history or context.stage_history[-1] != stage:
+            context.stage_history.append(stage)
+        return stage
+
     def accept_request(self, request: TaskRequest, readiness_ok: bool, readiness_message: str) -> OrchestratorDecision:
         task_type = request.task_type.strip()
         if not task_type:
@@ -60,8 +88,9 @@ class TaskOrchestrator:
 
     def begin_context(self, request: TaskRequest) -> TaskContext:
         context = TaskContext.from_request(request)
-        context.stage = 'perception'
-        context.stage_history.append('perception')
+        graph = self._graph_spec(context)
+        entry_node = str(graph.get('entryNode', 'perception') or 'perception')
+        self._set_graph_node(context, node_id=entry_node, default_stage='perception')
         context.last_message = 'waiting_for_target'
         return context
 
@@ -84,9 +113,7 @@ class TaskOrchestrator:
         context.selected_target = target
         context.target_id = target.target_id
         context.reserved_target_key = target.key()
-        context.stage = 'planning'
-        if not context.stage_history or context.stage_history[-1] != 'planning':
-            context.stage_history.append('planning')
+        self._set_graph_node(context, kind='planning', default_stage='planning')
         context.active_place_pose = calibration.resolve_place_profile(resolved_place_profile)
         context.last_message = f'target {target.key()} selected'
         return context
@@ -95,21 +122,24 @@ class TaskOrchestrator:
         retriable = fault in {FaultCode.TARGET_NOT_FOUND, FaultCode.TARGET_STALE, FaultCode.VISION_TIMEOUT, FaultCode.PLAN_FAILED, FaultCode.EXECUTE_TIMEOUT}
         if context.auto_retry and retriable and context.current_retry < context.max_retry:
             context.current_retry += 1
-            context.stage = 'perception'
-            context.stage_history.append('retry')
+            self._set_graph_node(context, kind='perception', default_stage='perception')
+            if not context.stage_history or context.stage_history[-1] != 'retry':
+                context.stage_history.append('retry')
             context.last_message = message
             context.selected_target = None
             context.target_id = None
             context.reserved_target_key = None
             return OrchestratorDecision(stage='retry', accepted=True, message=message, fault=fault)
-        context.stage = 'fault'
-        context.stage_history.append('fault')
+        self._set_graph_node(context, default_stage='fault')
+        if not context.stage_history or context.stage_history[-1] != 'fault':
+            context.stage_history.append('fault')
         context.last_message = message
         return OrchestratorDecision(stage='fault', accepted=False, message=message, fault=fault)
 
     def complete(self, context: TaskContext, message: str = 'task completed') -> OrchestratorDecision:
-        context.stage = 'complete'
-        context.stage_history.append('complete')
+        self._set_graph_node(context, kind='terminal', default_stage='complete')
+        if not context.stage_history or context.stage_history[-1] != 'complete':
+            context.stage_history.append('complete')
         context.complete_count += 1
         context.last_message = message
         if context.selected_target is not None:

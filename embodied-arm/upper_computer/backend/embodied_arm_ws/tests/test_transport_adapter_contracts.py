@@ -1,4 +1,4 @@
-from arm_motion_executor.transport_adapter import build_transport_adapter
+from arm_motion_executor.transport_adapter import build_transport_adapter, resolve_execution_backbone_contract
 
 
 def _ros2_submit(command: dict) -> tuple[bool, str]:
@@ -68,3 +68,14 @@ def test_ros2_control_live_submits_execution_target_sequentially() -> None:
     assert adapter.requires_sequential_dispatch() is True
     assert _publisher.calls == []
     assert _ros2_submit.calls and _ros2_submit.calls[0]['command_id'] == 'cmd-3'
+
+
+def test_resolve_execution_backbone_contract_fail_closes_invalid_live_lane() -> None:
+    contract = resolve_execution_backbone_contract(
+        forward_hardware_commands=False,
+        execution_mode='ros2_control_live',
+        ros2_control_available=False,
+    )
+    assert contract.transport_mode == 'rejected'
+    assert contract.authoritative_transport is False
+    assert 'requires forward_hardware_commands=true' in contract.rejection_message

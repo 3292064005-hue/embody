@@ -28,10 +28,10 @@ def test_clear_targets_requires_maintainer_and_clears_runtime_state():
 def test_readiness_required_checks_follow_operator_mode():
     with TestClient(app) as client:
         initial = client.get('/health/ready').json()['data']
-        assert initial['mode'] == 'simulated_local_only'
+        assert initial['mode'] == 'maintenance'
         client.post('/api/hardware/set-mode', json={'mode': 'maintenance'}, headers={'X-Operator-Role': 'maintainer'})
         maintenance = client.get('/health/ready').json()['data']
-        assert maintenance['mode'] == 'simulated_local_only'
+        assert maintenance['mode'] == 'maintenance'
         assert maintenance['source'] == 'gateway_dev_simulation'
         assert maintenance['commandPolicies']['jog']['allowed'] is True
 
@@ -87,6 +87,7 @@ def test_calibration_activation_fallback_reports_failure_without_ros_runtime(tmp
 def test_default_profile_remains_fail_closed(tmp_path, monkeypatch):
     monkeypatch.setenv('EMBODIED_ARM_RUNTIME_PROFILE', 'target-runtime')
     monkeypatch.setenv('EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK', 'false')
+    monkeypatch.setenv('EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS', 'false')
     state = GatewayState()
     bridge = RosBridge(state, lambda *_args, **_kwargs: None, tmp_path / 'default_calibration.yaml')
     bridge.available = False
@@ -217,3 +218,37 @@ def test_start_task_stale_authoritative_snapshot_is_readiness_blocked(monkeypatc
         assert readiness['runtimeTier'] == 'preview'
     finally:
         CTX.state.set_readiness_snapshot(previous, authoritative=bool(previous.get('authoritative', True)))
+
+
+def test_manual_preview_commands_are_explicitly_labeled(monkeypatch):
+    from gateway.lifespan import CTX
+
+    monkeypatch.setenv('EMBODIED_ARM_RUNTIME_PROFILE', 'dev-hmi-mock')
+    monkeypatch.setenv('EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK', 'true')
+    monkeypatch.setenv('EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS', 'true')
+
+    bridge = RosBridge(CTX.state, CTX.events, CTX.storage.active_yaml_path)
+    bridge.available = False
+    bridge.start()
+
+    result = __import__('asyncio').run(bridge.command_gripper(open_gripper=True))
+    assert result['localPreviewOnly'] is True
+    assert result['commandMode'] == 'local_preview_only'
+    assert result['success'] is True
+
+
+def test_local_preview_set_mode_rejects_task_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv('EMBODIED_ARM_RUNTIME_PROFILE', 'dev-hmi-mock')
+    monkeypatch.setenv('EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK', 'true')
+    monkeypatch.setenv('EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS', 'true')
+    state = GatewayState()
+    bridge = RosBridge(state, lambda *_args, **_kwargs: None, tmp_path / 'default_calibration.yaml')
+    bridge.available = False
+    bridge.start()
+    import asyncio
+    try:
+        asyncio.run(bridge.set_mode(mode='task'))
+    except Exception as exc:
+        assert 'only allows idle/manual/maintenance' in str(exc)
+    else:
+        raise AssertionError('expected local preview set_mode to reject task mode')

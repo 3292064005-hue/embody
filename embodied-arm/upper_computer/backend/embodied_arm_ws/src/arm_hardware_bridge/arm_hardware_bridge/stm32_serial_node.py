@@ -38,14 +38,14 @@ class Stm32SerialNode(ManagedLifecycleNode):
         self.declare_parameter('simulate_hardware', False)
         self.declare_parameter('allow_simulation_fallback', False)
         self.declare_parameter('authoritative_simulation', False)
-        self.declare_parameter('execution_mode', 'protocol_bridge')
+        self.declare_parameter('execution_mode', 'protocol_simulator')
         self.declare_parameter('sim_report_period_sec', 0.5)
         self._port = self.get_parameter('port').get_parameter_value().string_value
         self._baudrate = int(self.get_parameter('baudrate').get_parameter_value().integer_value)
         self._explicit_simulation = bool(self.get_parameter('simulate_hardware').value)
         self._allow_simulation_fallback = bool(self.get_parameter('allow_simulation_fallback').value)
         self._authoritative_simulation = bool(self.get_parameter('authoritative_simulation').value)
-        self._execution_mode = str(self.get_parameter('execution_mode').value or 'protocol_bridge')
+        self._execution_mode = str(self.get_parameter('execution_mode').value or 'protocol_simulator')
         self._simulate = self._explicit_simulation
         self._simulated_fallback = False
         self._connection_error: str | None = None
@@ -173,6 +173,41 @@ class Stm32SerialNode(ManagedLifecycleNode):
         except Exception as exc:
             self._activate_simulated_fallback(f'serial write failed: {exc}')
 
+    def _simulated_terminal_semantics(self, *, token: str, transport_result: str = 'accepted') -> dict[str, str]:
+        """Return terminal execution semantics for the active simulated transport.
+
+        Args:
+            token: Stable result token describing the completed command.
+            transport_result: Transport-level result marker echoed into the state.
+
+        Returns:
+            dict[str, str]: Terminal state/result fields merged into ``_sim_state``.
+
+        Boundary behavior:
+            ``authoritative_simulation`` keeps strong succeeded semantics because
+            it is the declared validated-sim execution backbone. Protocol-simulator
+            lanes emit transport-complete but actuation/execution-simulated tokens
+            so live-control consumers cannot misread them as real hardware success.
+        """
+        if self._execution_mode == 'authoritative_simulation':
+            return {
+                'transport_state': 'completed',
+                'transport_result': str(transport_result),
+                'actuation_state': 'succeeded',
+                'actuation_result': str(token),
+                'execution_state': 'succeeded',
+                'result_code': str(token),
+            }
+        simulated_token = f'protocol_{token}_simulated'
+        return {
+            'transport_state': 'completed',
+            'transport_result': str(transport_result),
+            'actuation_state': 'simulated',
+            'actuation_result': simulated_token,
+            'execution_state': 'simulated',
+            'result_code': simulated_token,
+        }
+
     def _queue_simulated_state_report(self, *, now: float | None = None, last_sequence: int = -1, task_id: str = '') -> None:
         """Queue one simulated REPORT_STATE frame to keep the semantic state fresh.
 
@@ -244,67 +279,37 @@ class Stm32SerialNode(ManagedLifecycleNode):
                 self._sim_state['home_ok'] = True
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = 'home_ok'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'homed'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'homed'
+                self._sim_state.update(self._simulated_terminal_semantics(token='homed'))
                 delay = 0.12
             elif kind == 'OPEN_GRIPPER':
                 self._sim_state['gripper_ok'] = True
                 self._sim_state['gripper_open'] = True
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = 'opened'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'gripper_open'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'gripper_open'
+                self._sim_state.update(self._simulated_terminal_semantics(token='gripper_open'))
                 delay = 0.06
             elif kind == 'CLOSE_GRIPPER':
                 self._sim_state['gripper_ok'] = True
                 self._sim_state['gripper_open'] = False
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = 'closed'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'gripper_closed'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'gripper_closed'
+                self._sim_state.update(self._simulated_terminal_semantics(token='gripper_closed'))
                 delay = 0.06
             elif kind == 'EXEC_STAGE':
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = 'done'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'stage_completed'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'stage_completed'
+                self._sim_state.update(self._simulated_terminal_semantics(token='stage_completed'))
                 delay = 0.10
             elif kind == 'RESET_FAULT':
                 self._sim_state['hardware_fault_code'] = 0
                 self._sim_state['limit_triggered'] = False
                 self._sim_state['estop_pressed'] = False
                 self._sim_state['last_result'] = 'reset'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'reset'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'reset'
+                self._sim_state.update(self._simulated_terminal_semantics(token='reset'))
                 delay = 0.05
             elif kind == 'QUERY_STATE':
                 self._sim_state['last_result'] = 'state'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'state_snapshot'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'state_snapshot'
+                self._sim_state.update(self._simulated_terminal_semantics(token='state_snapshot'))
                 delay = 0.03
             elif kind == 'JOG_JOINT':
                 joint_index = max(0, min(len(self._sim_state['joint_position']) - 1, int(payload.get('jointIndex', 0))))
@@ -315,12 +320,7 @@ class Stm32SerialNode(ManagedLifecycleNode):
                 self._sim_state['joint_velocity'][joint_index] = abs(step_rad)
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = 'jogged'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = 'joint_jogged'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = 'joint_jogged'
+                self._sim_state.update(self._simulated_terminal_semantics(token='joint_jogged'))
                 delay = 0.04
             elif kind == 'SERVO_CARTESIAN':
                 axis = str(payload.get('axis', 'x'))
@@ -331,12 +331,22 @@ class Stm32SerialNode(ManagedLifecycleNode):
                 self._sim_state['joint_velocity'][joint_index] = abs(delta)
                 self._sim_state['motion_busy'] = False
                 self._sim_state['last_result'] = f'servo_{axis}'
-                self._sim_state['transport_state'] = 'completed'
-                self._sim_state['transport_result'] = 'accepted'
-                self._sim_state['actuation_state'] = 'succeeded'
-                self._sim_state['actuation_result'] = f'servo_{axis}'
-                self._sim_state['execution_state'] = 'succeeded'
-                self._sim_state['result_code'] = f'servo_{axis}'
+                self._sim_state.update(self._simulated_terminal_semantics(token=f'servo_{axis}'))
+                delay = 0.04
+            elif kind == 'SET_JOINTS':
+                joint_positions = [float(item) for item in list(payload.get('joint_positions') or [])]
+                joint_limit = min(len(joint_positions), len(self._sim_state['joint_position']))
+                for index in range(joint_limit):
+                    previous = float(self._sim_state['joint_position'][index])
+                    current = float(joint_positions[index])
+                    self._sim_state['joint_position'][index] = current
+                    self._sim_state['joint_velocity'][index] = abs(current - previous)
+                if payload.get('gripper_position') is not None:
+                    gripper_position = float(payload.get('gripper_position', 0.0) or 0.0)
+                    self._sim_state['gripper_open'] = gripper_position >= 0.02
+                self._sim_state['motion_busy'] = False
+                self._sim_state['last_result'] = 'set_joints'
+                self._sim_state.update(self._simulated_terminal_semantics(token='set_joints'))
                 delay = 0.04
 
             self._queue_simulated_state_report(now=now + delay - 0.01, last_sequence=frame.sequence, task_id=str(payload.get('task_id', '')))

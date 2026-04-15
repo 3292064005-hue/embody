@@ -1,6 +1,7 @@
 import type { SystemState } from '@/models/system';
 import type { ReadinessState } from '@/models/readiness';
-import { apiClient, postVoid, unwrapResponse } from './client';
+import type { CommandTransportResult } from './commandResult';
+import { apiClient, unwrapResponse } from './client';
 import { fetchSystemReadiness } from '@/api/generated';
 
 export async function fetchSystemSummary(): Promise<SystemState> {
@@ -11,18 +12,20 @@ export async function fetchReadiness(): Promise<ReadinessState> {
   return fetchSystemReadiness();
 }
 
-export async function homeRobot(): Promise<void> {
-  await postVoid('/api/system/home');
+export interface SystemCommandResult extends CommandTransportResult {}
+
+export async function homeRobot(): Promise<SystemCommandResult> {
+  return unwrapResponse(apiClient.post('/api/system/home'));
 }
 
-export async function resetFault(): Promise<void> {
-  await postVoid('/api/system/reset-fault');
+export async function resetFault(): Promise<SystemCommandResult> {
+  return unwrapResponse(apiClient.post('/api/system/reset-fault'));
 }
 
-export async function recoverRuntime(): Promise<void> {
-  await postVoid('/api/system/recover');
+export async function recoverRuntime(): Promise<SystemCommandResult> {
+  return unwrapResponse(apiClient.post('/api/system/recover'));
 }
 
-export async function emergencyStop(): Promise<void> {
-  await postVoid('/api/system/emergency-stop');
+export async function emergencyStop(): Promise<SystemCommandResult> {
+  return unwrapResponse(apiClient.post('/api/system/emergency-stop'));
 }

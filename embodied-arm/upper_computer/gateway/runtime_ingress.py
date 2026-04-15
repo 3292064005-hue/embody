@@ -28,6 +28,8 @@ def bind_runtime_ingress(node: Any) -> None:
     node.create_subscription(node.TargetInfo, node.TopicNames.VISION_TARGET, node._on_target, 20)
     node.create_subscription(node.String, node.TopicNames.VISION_TARGETS, node._on_targets_summary, 20)
     node.create_subscription(node.String, node.TopicNames.CAMERA_FRAME_SUMMARY, node._on_camera_frame_summary, 20)
+    if hasattr(node.TopicNames, 'VOICE_EVENTS'):
+        node.create_subscription(node.String, node.TopicNames.VOICE_EVENTS, node._on_voice_events, 20)
     if node.TargetArray is not object:
         node.create_subscription(node.TargetArray, node.TopicNames.VISION_TARGETS_TYPED, node._on_targets_summary_typed, 20)
     node.create_subscription(node.TaskEvent, node.TopicNames.LOG_EVENT, node._on_log_event, 50)

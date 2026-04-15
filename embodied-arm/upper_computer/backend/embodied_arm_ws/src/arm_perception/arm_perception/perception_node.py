@@ -9,6 +9,7 @@ from .preprocess import ImagePreprocessor
 from .color_detector import ColorDetector
 from .qrcode_detector import QRCodeDetector
 from .contour_detector import ContourDetector
+from .synthetic_targets import describe_frame_visual_source
 from .target_filter import TargetFilter
 from .target_fuser import TargetFuser
 from .target_tracker import TargetTracker
@@ -167,6 +168,7 @@ class PerceptionNode:
         tracker_health = self.tracker.health_snapshot(now=timestamp)
         perception_health = self.health.snapshot(now=timestamp, stale_after_sec=self.stale_after_sec)
         stable_targets = self.current_targets(now=timestamp)
+        visual_source = describe_frame_visual_source(frame)
         return {
             'observedTargets': observed_targets,
             'targets': stable_targets,
@@ -174,6 +176,9 @@ class PerceptionNode:
             **perception_health,
             **tracker_health,
             'processedAtMonotonic': self._last_process_monotonic,
+            'frameProvenance': visual_source,
+            'detectionSourceMode': str(visual_source.get('detectionSourceMode', 'unknown')),
+            'authoritativeVisualSource': str(visual_source.get('authoritativeTargetSource', 'unknown')),
         }
 
     def health_snapshot(self, now: float | None = None, stale_after_sec: float | None = None) -> dict[str, Any]:

@@ -105,7 +105,7 @@ class AppContext:
             system['runtimePhase'] = 'idle' if getattr(self.ros, '_simulated_runtime_active', False) else 'boot'
             system['controllerMode'] = 'maintenance' if getattr(self.ros, '_simulated_runtime_active', False) else 'idle'
             system['taskStage'] = 'created'
-            system['faultMessage'] = 'ROS2 bridge unavailable; explicit dev-hmi-mock simulated runtime active.' if getattr(self.ros, '_simulated_runtime_active', False) else 'ROS2 bridge unavailable; gateway remains fail-closed until runtime connectivity is restored.'
+            system['faultMessage'] = 'ROS2 bridge unavailable; explicit dev-hmi-mock local preview runtime active.' if getattr(self.ros, '_simulated_runtime_active', False) else 'ROS2 bridge unavailable; gateway remains fail-closed until runtime connectivity is restored.'
             self.state.set_system(coerce_system_state_aliases(system))
         self.heartbeat_task = asyncio.create_task(self._heartbeat())
 

@@ -9,7 +9,7 @@ from ..command_service import CommandExecutionPlan, GatewayCommandService
 from ..errors import ErrorCode, FailureClass
 from ..lifespan import context_from_request
 from ..models import wrap_response
-from ..schemas import GripperRequest, JogJointRequest, ServoCartesianRequest
+from ..schemas import GripperRequest, JogJointRequest, ServoCartesianRequest, SetModeRequest
 from ..security import validate_gripper_command, validate_jog_command, validate_servo_command
 
 router = APIRouter()
@@ -21,6 +21,49 @@ async def get_hardware_state(request: Request):
     return wrap_response(ctx.state.get_hardware(), request_id_from_request(request))
 
 
+
+
+@router.post('/api/hardware/set-mode')
+async def post_set_mode(body: SetModeRequest, request: Request):
+    """Update the controller mode through the hardware command surface.
+
+    Args:
+        body: Requested controller mode payload.
+        request: FastAPI request carrying runtime context and operator headers.
+
+    Returns:
+        Wrapped command result bound to the current request id.
+
+    Raises:
+        ApiException: Propagates role or transport failures through the command pipeline.
+
+    Boundary behavior:
+        Operator role may switch only into public operator modes; maintenance-only
+        modes still require the maintainer role and never bypass readiness fail-closed
+        handling on downstream commands.
+    """
+    ctx = context_from_request(request)
+    request_id = request_id_from_request(request)
+
+    def mutate_mode(effective_ctx, result):
+        effective_ctx.state.set_controller_mode(str(result.get('mode', body.mode) or body.mode))
+        return None
+
+    command = GatewayCommandService(request, ctx=ctx)
+    result = await command.execute(
+        CommandExecutionPlan(
+            action='hardware.set_mode',
+            payload=body.model_dump(),
+            required_role='operator' if body.mode in {'idle', 'task'} else 'maintainer',
+            log_module='gateway.hardware',
+            success_message=lambda result: 'mode updated (local preview only)' if result.get('localPreviewOnly') else 'mode updated',
+            runtime_topics=('system',),
+            state_mutator=mutate_mode,
+        ),
+        lambda: ctx.ros.set_mode(mode=body.mode),
+    )
+    return wrap_response(result, request_id)
+
 @router.post('/api/hardware/gripper')
 async def post_gripper(body: GripperRequest, request: Request):
     ctx = context_from_request(request)
@@ -31,7 +74,7 @@ async def post_gripper(body: GripperRequest, request: Request):
         payload=body.model_dump(),
         required_role='operator',
         log_module='gateway.hardware',
-        success_message='gripper command sent',
+        success_message=lambda result: 'gripper command projected locally (preview only)' if result.get('localPreviewOnly') else 'gripper command sent',
         runtime_topics=('hardware',),
     )
     command.require_role(plan)
@@ -49,8 +92,8 @@ async def post_gripper(body: GripperRequest, request: Request):
         effective_ctx.state.set_gripper_open(body.open)
         return None
 
-    await command.execute(replace(plan, state_mutator=mutate_gripper), lambda: ctx.ros.command_gripper(open_gripper=body.open))
-    return wrap_response(None, request_id)
+    result = await command.execute(replace(plan, state_mutator=mutate_gripper), lambda: ctx.ros.command_gripper(open_gripper=body.open))
+    return wrap_response(result, request_id)
 
 
 @router.post('/api/hardware/jog-joint')
@@ -64,7 +107,7 @@ async def post_jog_joint(body: JogJointRequest, request: Request):
         required_role='maintainer',
         log_level='warn',
         log_module='gateway.hardware',
-        success_message='jog command sent',
+        success_message=lambda result: 'jog command projected locally (preview only)' if result.get('localPreviewOnly') else 'jog command sent',
         runtime_topics=('hardware',),
     )
     command.require_role(plan)
@@ -77,8 +120,8 @@ async def post_jog_joint(body: JogJointRequest, request: Request):
         error=ErrorCode.READINESS_BLOCKED,
         failure_class=FailureClass.READINESS_BLOCKED,
     )
-    await command.execute(plan, lambda: ctx.ros.jog_joint(joint_index=body.jointIndex, direction=body.direction, step_deg=body.stepDeg))
-    return wrap_response(None, request_id)
+    result = await command.execute(plan, lambda: ctx.ros.jog_joint(joint_index=body.jointIndex, direction=body.direction, step_deg=body.stepDeg))
+    return wrap_response(result, request_id)
 
 
 @router.post('/api/hardware/servo-cartesian')
@@ -109,7 +152,7 @@ async def post_servo_cartesian(body: ServoCartesianRequest, request: Request):
         required_role='maintainer',
         log_level='warn',
         log_module='gateway.hardware',
-        success_message='servo command sent',
+        success_message=lambda result: 'servo command projected locally (preview only)' if result.get('localPreviewOnly') else 'servo command sent',
         runtime_topics=('hardware',),
     )
     command.require_role(plan)
@@ -142,5 +185,5 @@ async def post_servo_cartesian(body: ServoCartesianRequest, request: Request):
         """
         return await CTX.ros.servo_cartesian(axis=body.axis, delta=body.delta)
 
-    await command.execute(plan, invoke_servo)
-    return wrap_response(None, request_id)
+    result = await command.execute(plan, invoke_servo)
+    return wrap_response(result, request_id)

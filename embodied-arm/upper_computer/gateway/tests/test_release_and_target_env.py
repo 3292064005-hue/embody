@@ -63,6 +63,9 @@ def test_release_package_excludes_runtime_state_and_transient_dirs(tmp_path: Pat
     (root / 'backend' / 'embodied_arm_ws' / 'build').mkdir(parents=True)
     (root / 'backend' / 'embodied_arm_ws' / 'install').mkdir(parents=True)
     (root / 'backend' / 'embodied_arm_ws' / 'log').mkdir(parents=True)
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'build').mkdir(parents=True)
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'install').mkdir(parents=True)
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'log').mkdir(parents=True)
     (root / 'frontend' / 'src' / 'components' / 'log').mkdir(parents=True)
     (root / 'app').mkdir(parents=True)
     (root / '.pytest_cache').mkdir(parents=True)
@@ -73,6 +76,10 @@ def test_release_package_excludes_runtime_state_and_transient_dirs(tmp_path: Pat
     (root / 'frontend' / 'node_modules' / 'dep.js').write_text('skip', encoding='utf-8')
     (root / 'backend' / 'embodied_arm_ws' / 'build' / 'a.txt').write_text('skip', encoding='utf-8')
     (root / 'backend' / 'embodied_arm_ws' / 'log' / 'runtime.log').write_text('skip', encoding='utf-8')
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'overlay_packages.txt').write_text('skip', encoding='utf-8')
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'build' / 'a.txt').write_text('skip', encoding='utf-8')
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'install' / 'a.txt').write_text('skip', encoding='utf-8')
+    (root / 'backend' / 'embodied_arm_ws' / '.active_overlay' / 'log' / 'runtime.log').write_text('skip', encoding='utf-8')
     (root / '.coverage').write_text('skip', encoding='utf-8')
 
     selected = [path.relative_to(root).as_posix() for path in iter_release_files(root)]
@@ -163,3 +170,27 @@ def test_package_support_matrix_promotes_esp32_gateway():
     assert '`arm_esp32_gateway` | runtime-core | yes' in matrix
     assert 'Runtime Core:' in architecture and 'arm_esp32_gateway' in architecture
     assert 'Experimental: `arm_hmi`' in architecture
+
+
+def test_ci_backend_dependency_install_uses_active_overlay():
+    workflow = Path('.github/workflows/ci.yml').read_text(encoding='utf-8')
+    assert 'ACTIVE_OVERLAY=$(python scripts/materialize_active_ros_overlay.py --print-root)' in workflow
+    assert 'rosdep install --from-paths "$ACTIVE_OVERLAY/src" --ignore-src -r -y --rosdistro humble' in workflow
+
+
+def test_release_package_excludes_experimental_workspace_packages(tmp_path: Path):
+    root = tmp_path / 'repo'
+    keep = root / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_runtime_core' / 'package.xml'
+    drop = root / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_hmi' / 'package.xml'
+    drop2 = root / 'backend' / 'embodied_arm_ws' / 'src' / 'arm_motion_bridge' / 'README.md'
+    keep.parent.mkdir(parents=True)
+    drop.parent.mkdir(parents=True)
+    drop2.parent.mkdir(parents=True)
+    keep.write_text('<package/>', encoding='utf-8')
+    drop.write_text('<package/>', encoding='utf-8')
+    drop2.write_text('legacy', encoding='utf-8')
+
+    selected = [path.relative_to(root).as_posix() for path in iter_release_files(root)]
+    assert 'backend/embodied_arm_ws/src/arm_runtime_core/package.xml' in selected
+    assert 'backend/embodied_arm_ws/src/arm_hmi/package.xml' not in selected
+    assert 'backend/embodied_arm_ws/src/arm_motion_bridge/README.md' not in selected

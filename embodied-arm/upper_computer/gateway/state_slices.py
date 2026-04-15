@@ -36,32 +36,37 @@ class RequestContextStore:
     _request_by_task_id: dict[str, str] = field(default_factory=dict)
     _correlation_by_task_id: dict[str, str] = field(default_factory=dict)
     _task_run_by_task_id: dict[str, str] = field(default_factory=dict)
+    _episode_by_task_id: dict[str, str] = field(default_factory=dict)
 
-    def attach(self, task_id: str, request_id: str, *, correlation_id: str | None = None, task_run_id: str | None = None) -> tuple[str, str, str]:
+    def attach(self, task_id: str, request_id: str, *, correlation_id: str | None = None, task_run_id: str | None = None, episode_id: str | None = None) -> tuple[str, str, str, str]:
         correlation = correlation_id or new_correlation_id()
         task_run = task_run_id or new_request_id('taskrun')
+        episode = episode_id or new_request_id('episode')
         self._request_by_task_id[task_id] = request_id
         self._correlation_by_task_id[task_id] = correlation
         self._task_run_by_task_id[task_id] = task_run
-        return request_id, correlation, task_run
+        self._episode_by_task_id[task_id] = episode
+        return request_id, correlation, task_run, episode
 
-    def get(self, task_id: str) -> tuple[str | None, str | None, str | None]:
-        return self._request_by_task_id.get(task_id), self._correlation_by_task_id.get(task_id), self._task_run_by_task_id.get(task_id)
+    def get(self, task_id: str) -> tuple[str | None, str | None, str | None, str | None]:
+        return self._request_by_task_id.get(task_id), self._correlation_by_task_id.get(task_id), self._task_run_by_task_id.get(task_id), self._episode_by_task_id.get(task_id)
 
     def get_payload(self, task_id: str) -> dict[str, str] | None:
-        request_id, correlation_id, task_run_id = self.get(task_id)
-        if not any((request_id, correlation_id, task_run_id)):
+        request_id, correlation_id, task_run_id, episode_id = self.get(task_id)
+        if not any((request_id, correlation_id, task_run_id, episode_id)):
             return None
         return {
             'requestId': request_id or '',
             'correlationId': correlation_id or '',
             'taskRunId': task_run_id or '',
+            'episodeId': episode_id or task_run_id or '',
         }
 
     def discard(self, task_id: str) -> None:
         self._request_by_task_id.pop(task_id, None)
         self._correlation_by_task_id.pop(task_id, None)
         self._task_run_by_task_id.pop(task_id, None)
+        self._episode_by_task_id.pop(task_id, None)
 
 
 @dataclass
@@ -200,6 +205,7 @@ class TaskRunLedgerStore:
                 'requestId': str(item.get('requestId', '') or '') or None,
                 'correlationId': str(item.get('correlationId', '') or '') or None,
                 'taskRunId': str(item.get('taskRunId', '') or '') or None,
+                'episodeId': str(item.get('episodeId', item.get('taskRunId', '')) or '') or None,
             })
             if len(finished) >= max(1, int(limit)):
                 break
@@ -225,15 +231,18 @@ class TaskProjectionStore:
         system_state: dict[str, Any],
         correlation_id: str | None = None,
         task_run_id: str | None = None,
+        episode_id: str | None = None,
         template_id: str | None = None,
         place_profile: str | None = None,
         runtime_tier: str | None = None,
+        graph_key: str | None = None,
     ) -> dict[str, Any]:
         now = now_iso()
         self._current_task = {
             'taskId': task_id,
             'templateId': template_id,
             'taskType': frontend_task_type,
+            'graphKey': graph_key,
             'stage': 'created',
             'percent': 0,
             'retryCount': 0,
@@ -250,10 +259,11 @@ class TaskProjectionStore:
         system_state['controllerMode'] = 'task'
         system_state.update(coerce_system_state_aliases(system_state))
         if request_id:
-            attached_request_id, attached_correlation_id, attached_task_run_id = self.request_contexts.attach(task_id, request_id, correlation_id=correlation_id, task_run_id=task_run_id)
+            attached_request_id, attached_correlation_id, attached_task_run_id, attached_episode_id = self.request_contexts.attach(task_id, request_id, correlation_id=correlation_id, task_run_id=task_run_id, episode_id=episode_id)
             self._current_task['requestId'] = attached_request_id
             self._current_task['correlationId'] = attached_correlation_id
             self._current_task['taskRunId'] = attached_task_run_id
+            self._current_task['episodeId'] = attached_episode_id
         self._append_ledger_event('task_run.started', self._current_task)
         return deepcopy(self._current_task)
 
@@ -400,6 +410,7 @@ class TaskProjectionStore:
             'requestId': self._current_task.get('requestId'),
             'correlationId': self._current_task.get('correlationId'),
             'taskRunId': self._current_task.get('taskRunId'),
+            'episodeId': self._current_task.get('episodeId', self._current_task.get('taskRunId')),
         }
         self._task_history = [history_entry, *self._task_history][:100]
         self._append_ledger_event('task_run.finished', history_entry)

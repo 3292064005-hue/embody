@@ -88,22 +88,70 @@ class CaptureBackend:
         self.mock_profile = normalized_profile
         self._frame_counter = 0
 
+    @staticmethod
+    def _build_visual_provenance(
+        *,
+        source_class: str,
+        detection_source_mode: str,
+        authoritative_target_source: str,
+        renderable_preview: bool,
+        camera_live: bool,
+        frame_ingress_live: bool,
+    ) -> dict[str, Any]:
+        """Build stable provenance metadata for downstream camera/perception consumers."""
+        return {
+            'sourceClass': str(source_class or 'unknown'),
+            'detectionSourceMode': str(detection_source_mode or 'unknown'),
+            'authoritativeTargetSource': str(authoritative_target_source or 'unknown'),
+            'renderablePreview': bool(renderable_preview),
+            'cameraLive': bool(camera_live),
+            'frameIngressLive': bool(frame_ingress_live),
+        }
+
     def _authoritative_mock_payload(self) -> dict[str, Any]:
         self._frame_counter += 1
+        provenance = self._build_visual_provenance(
+            source_class='synthetic',
+            detection_source_mode='synthetic_targets',
+            authoritative_target_source='synthetic_perception',
+            renderable_preview=True,
+            camera_live=False,
+            frame_ingress_live=True,
+        )
         return {
             'kind': 'synthetic_scene',
             'mockProfile': self.mock_profile,
-            'authoritativeTargetSource': 'synthetic_perception',
+            'sourceClass': provenance['sourceClass'],
+            'detectionSourceMode': provenance['detectionSourceMode'],
+            'authoritativeTargetSource': provenance['authoritativeTargetSource'],
+            'renderablePreview': provenance['renderablePreview'],
+            'cameraLive': provenance['cameraLive'],
+            'frameIngressLive': provenance['frameIngressLive'],
+            'visualProvenance': provenance,
             'frameSequence': self._frame_counter,
             'targets': [dict(target) for target in _AUTHORITATIVE_TARGETS],
         }
 
     def _empty_mock_payload(self) -> dict[str, Any]:
         self._frame_counter += 1
+        provenance = self._build_visual_provenance(
+            source_class='synthetic',
+            detection_source_mode='external_topic_required',
+            authoritative_target_source='external_topic_required',
+            renderable_preview=True,
+            camera_live=False,
+            frame_ingress_live=True,
+        )
         return {
             'kind': 'synthetic_scene',
             'mockProfile': self.mock_profile,
-            'authoritativeTargetSource': 'external_topic_required',
+            'sourceClass': provenance['sourceClass'],
+            'detectionSourceMode': provenance['detectionSourceMode'],
+            'authoritativeTargetSource': provenance['authoritativeTargetSource'],
+            'renderablePreview': provenance['renderablePreview'],
+            'cameraLive': provenance['cameraLive'],
+            'frameIngressLive': provenance['frameIngressLive'],
+            'visualProvenance': provenance,
             'frameSequence': self._frame_counter,
             'payload': _REALISTIC_MOCK_PAYLOAD,
             'targets': [],

@@ -34,7 +34,8 @@ Error responses use a stable envelope:
 - Explicit local HMI development may run with:
   - `EMBODIED_ARM_RUNTIME_PROFILE=dev-hmi-mock`
   - `EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK=true`
-- In that profile, readiness mode is `simulated_local_only` and response payloads include `simulated: true` and `authoritative: false` where applicable.
+  - `EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS=true`
+- In that profile, readiness mode stays on the canonical `maintenance` token and response payloads include `simulated: true` and `authoritative: false` where applicable.
 - Frontend offline fixture replay is only enabled with `VITE_ENABLE_MOCK=true` and `VITE_API_MOCK_MODE=fixture`; otherwise frontend mock mode is expected to talk to the gateway simulation profile.
 - Command-policy decisions (`commandPolicies`) are sourced from the readiness snapshot carried by the runtime or by the explicit dev simulation profile. The gateway must not speculate that the target runtime is ready.
 
@@ -97,12 +98,23 @@ Legacy aliases remain during the compatibility window:
 - `POST /api/system/recover`
 - `POST /api/system/emergency-stop`
 
+System command endpoints now return a transport result payload instead of an empty body. The response exposes at least:
+
+- `success`
+- `message`
+- `localPreviewOnly`
+- `commandMode`
+
+When `localPreviewOnly=true`, the gateway only projected the command into explicit local preview state and did **not** send it to the authoritative ROS runtime.
+
 ## Task
 - `GET /api/task/current`
 - `GET /api/task/history`
 - `GET /api/task/templates`
 - `POST /api/task/start`
 - `POST /api/task/stop`
+
+`POST /api/task/stop` also returns the same transport result payload (`success/message/localPreviewOnly/commandMode`) so local preview task-stop projections cannot be mistaken for authoritative runtime execution.
 
 ### Task template source-of-truth
 

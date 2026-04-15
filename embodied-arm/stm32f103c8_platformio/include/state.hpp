@@ -37,8 +37,8 @@ struct HardwareState {
     last_result = "reset";
     transport_state = "accepted";
     transport_result = "accepted";
-    actuation_state = "succeeded";
-    actuation_result = "reset";
+    actuation_state = "simulated";
+    actuation_result = "protocol_reset_simulated";
     execution_state = actuation_state;
     result_code = actuation_result;
   }

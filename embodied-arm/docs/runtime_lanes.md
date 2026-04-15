@@ -4,11 +4,11 @@
 
 ## 单一事实来源
 
-当前 lane 默认值以：
+当前 lane 的唯一可编辑事实来源是：
 
-- `upper_computer/backend/embodied_arm_ws/src/arm_bringup/config/runtime_profiles.yaml`
+- `upper_computer/backend/embodied_arm_ws/src/arm_bringup/config/runtime_authority.yaml`
 
-为唯一配置事实来源；`launch_factory.py` 从该文件加载 lane manifest，并把能力参数下发给 motion planner 与 ESP32 link 节点。
+`runtime_profiles.yaml`、Gateway / frontend runtime contract、generated docs 都是从 authority 派生的只读产物；`launch_factory.py` 只消费派生结果，不再手写 official / experimental lane 列表。
 
 ## Canonical lanes（当前唯一正式 lane 名称）
 
@@ -52,7 +52,7 @@
 - `disabled`：规划能力关闭；plan request 必须 fail-closed。
 - `contract_only`：仅允许契约级/演示级 planning fallback；**不是 authoritative planning**。
 - `validated_sim`：已验证的仿真 authoritative planning。
-- `validated_live`：已验证的真机 authoritative planning。
+- `validated_live`：保留给 future validated-live promotion 的能力标签；当前仓库默认 fail-closed，不应被表述为已经开放的正式真机 authoritative planning。
 
 ### 当前默认值
 
@@ -151,7 +151,7 @@ ESP32 板级状态与视觉帧输入链已经拆分：
 - 在 preview lanes 中，它仍只是 transport / protocol / upper-computer 联调固件；
 - 在 authoritative simulation lanes 中，它只提升为 `authoritative_simulated_transport`，用于仓内 validated_sim 闭环；
 - 当前正式 validated_sim 执行 authority 仍是 dispatcher/feedback 主链；
-- `real_authoritative` 已预留为 `ros2_control` live execution backbone 的唯一正式提升路径，但在 live planning backend 与 execution backbone 同时声明前，仍保持 fail-closed 预览语义；
+- `live_control` / `real_validated_live` 仍是 experimental live skeleton；只有 canonical lane 或 `experimental_*` alias 允许显式进入。历史 `real_authoritative` / `validated_live` / `live` alias 与 `runtime_real_authoritative.launch.py` 兼容入口默认退休，避免无提示落到 experimental lane；
 - 不应把当前仓库的 live 执行语义宣传成已验证的真机 authoritative motion execution。
 
 ## 对上层的影响
@@ -169,4 +169,4 @@ ESP32 板级状态与视觉帧输入链已经拆分：
 - `*_preview` lanes keep the task workbench read-only. The side navigation marks task features as preview-only and the task center only exposes history/audit views.
 - `*_authoritative` lanes expose the full task workbench, template selection, and start controls.
 
-- `real_authoritative` 在 `ros2_control` controller action server 未就绪时，`motion_executor` readiness 必须保持非 ready，`startTask` 继续 fail-closed。
+- `live_control` / `real_validated_live` 在 `ros2_control` controller action server 未就绪、live planning backend 未声明、target-runtime gate / HIL / release checklist 任一未通过时，`motion_executor` readiness 必须保持非 ready，`startTask` 继续 fail-closed。

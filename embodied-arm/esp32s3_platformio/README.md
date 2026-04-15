@@ -41,4 +41,18 @@ USB CDC/串口监视器里输入一行文本并回车，也会被记录成 voice
 
 ## 注意
 
-这份 generic ESP32-S3 固件没有强绑定某个摄像头模组引脚，因此 `/stream` 当前保留为正式 endpoint，并返回板级状态与预留说明。若你后续确定了具体 S3 camera 模组，可以在此工程内继续替换为真实 MJPEG/RTSP 输出，但 endpoint 与 metadata 语义不应改变。
+这份 generic ESP32-S3 固件默认通过 authority 生成的 `preview_reserved` profile 把 `/stream` 定义为**reserved metadata/control-plane endpoint**：
+
+- 默认 `runtime semantic profile=preview_reserved`
+- 默认 `stream_semantic=reserved`
+- 默认 `frame_ingress_live=false`
+- 默认 `delivery_model=control_plane_only`
+- `/stream` 不直接承诺板端 MJPEG 传输，也不把 generic firmware 伪装成 live ingress
+
+若你的板卡需要对齐其他 runtime lane，可通过 PlatformIO `build_flags` 覆盖 `EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE`：
+
+- `EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE=EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_PREVIEW_RESERVED`
+- `EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE=EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_VALIDATED_SIM_SYNTHETIC`
+- `EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE=EMBODIED_ARM_RUNTIME_SEMANTIC_PROFILE_VALIDATED_LIVE_EXTERNAL_BRIDGE`
+
+生成头文件位于 `include/generated/runtime_semantic_profile.hpp`，由 `upper_computer/scripts/sync_runtime_authority.py` 自动产出。

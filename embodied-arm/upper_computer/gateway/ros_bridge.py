@@ -7,8 +7,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from .models import build_command_summary, coerce_system_state_aliases, default_readiness, map_camera_frame_summary, map_hardware_state_message, map_log_event_message, map_system_state_message, map_target_message, now_iso
-from .runtime_bootstrap import simulated_local_only_snapshot
+from .models import build_command_summary, new_request_id, coerce_system_state_aliases, default_readiness, map_camera_frame_summary, map_hardware_state_message, map_log_event_message, map_system_state_message, map_target_message, now_iso
+from .runtime_bootstrap import local_preview_snapshot
 from .runtime_ingress import bind_runtime_ingress
 from .ros_contract import (
     ActionNames, ActivateCalibrationVersion, CalibrationProfileMsg, DiagnosticsSummary, HardwareState, HomeArm, Homing, PickPlaceTask, ReadinessState, Recover, ResetFault,
@@ -215,6 +215,193 @@ def build_pick_place_action_goal_payload(*, task_id: str, target_selector: str, 
     }
 
 
+class _BaseCommandExecutor:
+    """Unified gateway-side execution backbone provider.
+
+    Implementations own the concrete command semantics for one execution
+    backbone while RosBridge remains the policy/audit surface.
+    """
+
+    backbone = 'unknown'
+
+    def __init__(self, bridge: 'RosBridge') -> None:
+        self._bridge = bridge
+
+    async def home(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def reset_fault(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def recover(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def stop_task(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def emergency_stop(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def set_mode(self, *, mode: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+class _AuthoritativeRosCommandExecutor(_BaseCommandExecutor):
+    backbone = 'authoritative_transport'
+
+    def _normalize(self, payload: dict[str, Any]) -> dict[str, Any]:
+        result = dict(payload)
+        result.setdefault('localPreviewOnly', False)
+        result.setdefault('commandMode', self.backbone)
+        result.setdefault('executionBackbone', 'ros_runtime')
+        return result
+
+    async def home(self) -> dict[str, Any]:
+        return self._normalize(await self._bridge._node.call_home())
+
+    async def reset_fault(self) -> dict[str, Any]:
+        return self._normalize(await self._bridge._node.call_reset_fault())
+
+    async def recover(self) -> dict[str, Any]:
+        return self._normalize(await self._bridge._node.call_recover())
+
+    async def stop_task(self) -> dict[str, Any]:
+        return self._normalize(await self._bridge._node.call_stop_task())
+
+    async def emergency_stop(self) -> dict[str, Any]:
+        self._bridge._node.publish_hardware_command({'kind': 'ESTOP', 'task_id': 'system', 'timeout_sec': 0.2})
+        return self._normalize({'success': True, 'message': 'hardware estop published'})
+
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
+        result = await self._bridge._node.call_start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry)
+        result = dict(result)
+        result.setdefault('executionBackbone', 'ros_runtime')
+        return result
+
+    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+        self._bridge._node.publish_hardware_command({'kind': 'OPEN_GRIPPER' if open_gripper else 'CLOSE_GRIPPER', 'task_id': 'manual', 'timeout_sec': 0.6})
+        return self._normalize({'success': True, 'message': 'hardware gripper command published', 'open': bool(open_gripper)})
+
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+        self._bridge._node.publish_hardware_command({'kind': 'JOG_JOINT', 'task_id': 'manual', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg), 'timeout_sec': 0.4})
+        return self._normalize({'success': True, 'message': 'hardware joint jog published', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg)})
+
+    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+        self._bridge._node.publish_hardware_command({'kind': 'SERVO_CARTESIAN', 'task_id': 'manual', 'axis': str(axis), 'delta': float(delta), 'timeout_sec': 0.4})
+        return self._normalize({'success': True, 'message': 'hardware cartesian servo published', 'axis': str(axis), 'delta': float(delta)})
+
+    async def set_mode(self, *, mode: str) -> dict[str, Any]:
+        return self._normalize(await self._bridge._node.call_set_mode(mode))
+
+
+class _LocalPreviewCommandExecutor(_BaseCommandExecutor):
+    backbone = 'local_preview_only'
+
+    def _result(self, *, action: str, message: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._bridge._local_preview_command_result(action=action, message=message, extra=extra)
+
+    async def home(self) -> dict[str, Any]:
+        hardware = self._bridge.state.get_hardware()
+        hardware['homed'] = True
+        hardware['busy'] = False
+        self._bridge.state.set_hardware(hardware)
+        return self._result(action='system.home', message='local preview home projection applied')
+
+    async def reset_fault(self) -> dict[str, Any]:
+        system = self._bridge.state.get_system()
+        system['emergencyStop'] = False
+        system['faultCode'] = None
+        system['faultMessage'] = None
+        system['runtimePhase'] = 'idle'
+        system['controllerMode'] = 'idle'
+        system['taskStage'] = 'done'
+        self._bridge.state.set_system(coerce_system_state_aliases(system))
+        return self._result(action='system.reset_fault', message='local preview reset-fault projection applied')
+
+    async def recover(self) -> dict[str, Any]:
+        system = self._bridge.state.get_system()
+        system['emergencyStop'] = False
+        system['faultCode'] = None
+        system['faultMessage'] = None
+        system['runtimePhase'] = 'idle'
+        system['controllerMode'] = 'idle'
+        system['taskStage'] = 'done'
+        self._bridge.state.set_system(coerce_system_state_aliases(system))
+        hardware = self._bridge.state.get_hardware()
+        hardware['busy'] = False
+        self._bridge.state.set_hardware(hardware)
+        return self._result(action='system.recover', message='local preview recover projection applied')
+
+    async def stop_task(self) -> dict[str, Any]:
+        system = self._bridge.state.get_system()
+        system['runtimePhase'] = 'safe_stop'
+        system['controllerMode'] = 'maintenance'
+        system['taskStage'] = 'failed'
+        system['faultMessage'] = 'task stopped'
+        self._bridge.state.set_system(coerce_system_state_aliases(system))
+        return self._result(action='task.stop', message='local preview task-stop projection applied')
+
+    async def emergency_stop(self) -> dict[str, Any]:
+        system = self._bridge.state.get_system()
+        system['runtimePhase'] = 'safe_stop'
+        system['controllerMode'] = 'maintenance'
+        system['taskStage'] = 'failed'
+        system['emergencyStop'] = True
+        system['faultCode'] = 'ESTOP'
+        system['faultMessage'] = 'simulated estop'
+        self._bridge.state.set_system(coerce_system_state_aliases(system))
+        return self._result(action='system.emergency_stop', message='local preview emergency-stop projection applied')
+
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
+        del task_type, target_selector, place_profile, auto_retry, max_retry
+        return {'accepted': False, 'task_id': '', 'message': 'task execution requires authoritative ROS runtime readiness', 'simulated': True, 'localPreviewOnly': True, 'commandMode': self.backbone, 'executionBackbone': 'local_preview'}
+
+    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+        self._bridge.state.set_gripper_open(open_gripper)
+        return self._result(action='gripper', message='local preview gripper projection applied', extra={'open': bool(open_gripper)})
+
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+        hardware = self._bridge.state.get_hardware()
+        joints = list(hardware.get('joints', [0.0] * 6))
+        joints[joint_index] = round(joints[joint_index] + direction * step_deg, 3)
+        hardware['joints'] = joints
+        hardware['poseName'] = f'joint_{joint_index}_jog'
+        self._bridge.state.set_hardware(hardware)
+        return self._result(action='jog_joint', message='local preview joint jog projection applied', extra={'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg)})
+
+    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+        hardware = self._bridge.state.get_hardware()
+        raw_status = dict(hardware.get('rawStatus', {}))
+        raw_status['servoCartesian'] = {'axis': str(axis), 'delta': float(delta), 'appliedAt': now_iso()}
+        hardware['rawStatus'] = raw_status
+        hardware['poseName'] = f"servo_{axis}"
+        self._bridge.state.set_hardware(hardware)
+        return self._result(action='servo_cartesian', message='local preview cartesian servo projection applied', extra={'axis': str(axis), 'delta': float(delta)})
+
+    async def set_mode(self, *, mode: str) -> dict[str, Any]:
+        normalized = str(mode or 'idle').strip().lower()
+        allowed_modes = {'idle', 'manual', 'maintenance'}
+        if normalized not in allowed_modes:
+            raise RosBridgeError('local preview mode switching only allows idle/manual/maintenance')
+        system = self._bridge.state.get_system()
+        system['controllerMode'] = normalized
+        system['runtimePhase'] = 'idle'
+        self._bridge.state.set_system(coerce_system_state_aliases(system))
+        return self._result(action='set_mode', message=f'local preview controller mode set to {normalized}', extra={'mode': normalized})
+
+
 class RosBridge:
     def __init__(self, state: GatewayState, publisher: RuntimeEventPublisher, active_calibration_path: Path) -> None:
         self.state = state
@@ -226,13 +413,29 @@ class RosBridge:
         self._thread = None
         self._runtime_profile = str(os.environ.get('EMBODIED_ARM_RUNTIME_PROFILE', 'target-runtime') or 'target-runtime').strip().lower()
         self._allow_sim_fallback = os.environ.get('EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK', 'false').lower() == 'true'
+        self._enable_local_preview_commands = os.environ.get('EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS', 'false').lower() == 'true'
         self._simulated_runtime_active = False
+        self._authoritative_executor: _AuthoritativeRosCommandExecutor | None = None
+        self._local_preview_executor: _LocalPreviewCommandExecutor | None = None
 
     def _can_use_local_simulated_runtime(self) -> bool:
-        return self._runtime_profile == 'dev-hmi-mock' and self._allow_sim_fallback
+        return self._runtime_profile == 'dev-hmi-mock' and self._allow_sim_fallback and self._enable_local_preview_commands
+
+    def _local_preview_command_result(self, *, action: str, message: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = {
+            'success': True,
+            'action': str(action),
+            'message': str(message),
+            'simulated': True,
+            'localPreviewOnly': True,
+            'commandMode': 'local_preview_only',
+        }
+        if extra:
+            payload.update(extra)
+        return payload
 
     def _build_simulated_readiness_snapshot(self) -> dict[str, Any]:
-        return simulated_local_only_snapshot()
+        return local_preview_snapshot()
 
     def start(self) -> None:
         if not self.available:
@@ -241,7 +444,7 @@ class RosBridge:
             if self._can_use_local_simulated_runtime():
                 self._simulated_runtime_active = True
                 self.state.set_readiness_snapshot(self._build_simulated_readiness_snapshot(), authoritative=False)
-                system['faultMessage'] = 'ROS2 bridge unavailable; gateway running in explicit dev-hmi-mock simulated_local_only profile.'
+                system['faultMessage'] = 'ROS2 bridge unavailable; gateway running in explicit dev-hmi-mock local preview profile.'
             else:
                 self._simulated_runtime_active = False
                 self.state.set_readiness_snapshot(default_readiness(), authoritative=False)
@@ -321,122 +524,56 @@ class RosBridge:
             return
         if self._simulated_runtime_active:
             return
-        raise RosBridgeError('ROS2 bridge unavailable. 请在已 source ROS2 与工作区环境后启动网关，或显式设置 EMBODIED_ARM_RUNTIME_PROFILE=dev-hmi-mock 且开启 EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK=true。')
+        raise RosBridgeError('ROS2 bridge unavailable. 请在已 source ROS2 与工作区环境后启动网关，或显式设置 EMBODIED_ARM_RUNTIME_PROFILE=dev-hmi-mock、EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK=true 与 EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS=true（该组合仅投影本地 preview/maintenance 语义）。')
+
+    def _executor_or_raise(self) -> _BaseCommandExecutor:
+        self.ensure_available()
+        if self.available and self._node is not None:
+            if self._authoritative_executor is None:
+                self._authoritative_executor = _AuthoritativeRosCommandExecutor(self)
+            return self._authoritative_executor
+        if self._simulated_runtime_active:
+            if self._local_preview_executor is None:
+                self._local_preview_executor = _LocalPreviewCommandExecutor(self)
+            return self._local_preview_executor
+        raise RosBridgeError('no execution backbone available')
 
     async def home(self) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            return await self._node.call_home()
-        hardware = self.state.get_hardware()
-        hardware['homed'] = True
-        hardware['busy'] = False
-        self.state.set_hardware(hardware)
-        return {'success': True, 'message': 'simulated home completed', 'simulated': True}
+        return await self._executor_or_raise().home()
 
     async def reset_fault(self) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            return await self._node.call_reset_fault()
-        system = self.state.get_system()
-        system['emergencyStop'] = False
-        system['faultCode'] = None
-        system['faultMessage'] = None
-        system['runtimePhase'] = 'idle'
-        system['controllerMode'] = 'idle'
-        system['taskStage'] = 'done'
-        self.state.set_system(coerce_system_state_aliases(system))
-        return {'success': True, 'message': 'simulated fault reset completed', 'simulated': True}
+        return await self._executor_or_raise().reset_fault()
 
 
     async def recover(self) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            return await self._node.call_recover()
-        system = self.state.get_system()
-        system['emergencyStop'] = False
-        system['faultCode'] = None
-        system['faultMessage'] = None
-        system['runtimePhase'] = 'idle'
-        system['controllerMode'] = 'idle'
-        system['taskStage'] = 'done'
-        self.state.set_system(coerce_system_state_aliases(system))
-        hardware = self.state.get_hardware()
-        hardware['busy'] = False
-        self.state.set_hardware(hardware)
-        return {'success': True, 'message': 'simulated recover completed', 'simulated': True}
+        return await self._executor_or_raise().recover()
 
     async def stop_task(self) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            return await self._node.call_stop_task()
-        system = self.state.get_system()
-        system['runtimePhase'] = 'safe_stop'
-        system['controllerMode'] = 'maintenance'
-        system['taskStage'] = 'failed'
-        system['faultMessage'] = 'task stopped'
-        self.state.set_system(coerce_system_state_aliases(system))
-        return {'success': True, 'message': 'simulated task stop completed', 'simulated': True}
+        return await self._executor_or_raise().stop_task()
 
     async def emergency_stop(self) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            self._node.publish_hardware_command({'kind': 'ESTOP', 'task_id': 'system', 'timeout_sec': 0.2})
-            return {'success': True, 'message': 'hardware estop published'}
-        system = self.state.get_system()
-        system['runtimePhase'] = 'safe_stop'
-        system['controllerMode'] = 'maintenance'
-        system['taskStage'] = 'failed'
-        system['emergencyStop'] = True
-        system['faultCode'] = 'ESTOP'
-        system['faultMessage'] = 'simulated estop'
-        self.state.set_system(coerce_system_state_aliases(system))
-        return {'success': True, 'message': 'simulated estop completed', 'simulated': True}
+        return await self._executor_or_raise().emergency_stop()
 
     async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            return await self._node.call_start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry)
-        return {'accepted': False, 'task_id': '', 'message': 'task execution requires authoritative ROS runtime readiness', 'simulated': True}
+        return await self._executor_or_raise().start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry)
 
-    async def command_gripper(self, *, open_gripper: bool) -> None:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            self._node.publish_hardware_command({'kind': 'OPEN_GRIPPER' if open_gripper else 'CLOSE_GRIPPER', 'task_id': 'manual', 'timeout_sec': 0.6})
-            return
-        self.state.set_gripper_open(open_gripper)
+    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+        return await self._executor_or_raise().command_gripper(open_gripper=open_gripper)
 
-    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> None:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            self._node.publish_hardware_command({'kind': 'JOG_JOINT', 'task_id': 'manual', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg), 'timeout_sec': 0.4})
-            return
-        hardware = self.state.get_hardware()
-        joints = list(hardware.get('joints', [0.0] * 6))
-        joints[joint_index] = round(joints[joint_index] + direction * step_deg, 3)
-        hardware['joints'] = joints
-        hardware['poseName'] = f'joint_{joint_index}_jog'
-        self.state.set_hardware(hardware)
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+        return await self._executor_or_raise().jog_joint(joint_index=joint_index, direction=direction, step_deg=step_deg)
 
-    async def servo_cartesian(self, *, axis: str, delta: float) -> None:
-        """Send a cartesian servo command through the hardware bridge.
+    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+        """Send a cartesian servo command through the selected execution backbone.
 
         Args:
             axis: Cartesian axis name.
             delta: Requested step size in meters or radians depending on axis.
 
         Raises:
-            RosBridgeError: Raised when the command cannot be published.
+            RosBridgeError: Raised when no execution backbone is available.
         """
-        self.ensure_available()
-        if self.available and self._node is not None:
-            self._node.publish_hardware_command({'kind': 'SERVO_CARTESIAN', 'task_id': 'manual', 'axis': str(axis), 'delta': float(delta), 'timeout_sec': 0.4})
-            return
-        hardware = self.state.get_hardware()
-        raw_status = dict(hardware.get('rawStatus', {}))
-        raw_status['servoCartesian'] = {'axis': str(axis), 'delta': float(delta), 'appliedAt': now_iso()}
-        hardware['rawStatus'] = raw_status
-        hardware['poseName'] = f"servo_{axis}"
-        self.state.set_hardware(hardware)
+        return await self._executor_or_raise().servo_cartesian(axis=axis, delta=delta)
 
     async def activate_calibration(self, *, profile_id: str) -> dict[str, Any]:
         """Activate the current calibration profile inside the ROS runtime.
@@ -460,15 +597,8 @@ class RosBridge:
             'profile_id': profile_id,
         }
 
-    async def set_mode(self, *, mode: str) -> None:
-        self.ensure_available()
-        if self.available and self._node is not None:
-            await self._node.call_set_mode(mode)
-        system = self.state.get_system()
-        system['controllerMode'] = mode
-        if mode in {'manual', 'maintenance'}:
-            system['runtimePhase'] = 'idle'
-        self.state.set_system(coerce_system_state_aliases(system))
+    async def set_mode(self, *, mode: str) -> dict[str, Any]:
+        return await self._executor_or_raise().set_mode(mode=mode)
 
     async def reload_calibration(self) -> None:
         self.ensure_available()
@@ -505,11 +635,15 @@ if RCLPY_AVAILABLE:
             self.CalibrationProfileMsg = CalibrationProfileMsg
             self.ReadinessState = ReadinessState
             self.TopicNames = TopicNames
+            self._voice_event_seq = 0
             bind_runtime_ingress(self)
             self.create_timer(1.0, self._maintenance_tick)
 
         def publish_hardware_command(self, payload: dict[str, Any]) -> None:
-            self._hardware_cmd_pub.publish(String(data=json.dumps(payload, ensure_ascii=False)))
+            envelope = dict(payload)
+            envelope.setdefault('producer', 'gateway_manual_control')
+            envelope.setdefault('command_plane', 'manual_control')
+            self._hardware_cmd_pub.publish(String(data=json.dumps(envelope, ensure_ascii=False)))
 
         async def call_home(self) -> dict[str, Any]:
             if self._homing_action_client is not None and self._homing_action_client.wait_for_server(timeout_sec=0.1):
@@ -648,12 +782,93 @@ if RCLPY_AVAILABLE:
             self._state.set_vision_frame(frame_payload)
             self._publisher.publish_topics_threadsafe('vision_frame')
 
+        def _on_voice_events(self, msg: String) -> None:
+            """Consume ESP32 voice-event payloads into the gateway observability stream.
+
+            Args:
+                msg: JSON string published by the ESP32 gateway on
+                    ``TopicNames.VOICE_EVENTS``.
+
+            Returns:
+                None. Parsed events are appended to the log stream and mirrored
+                into the audit stream so HMI operators can trace voice-originated
+                triggers through the same observability surfaces as manual commands.
+
+            Boundary behavior:
+                Malformed payloads do not raise; they are converted into one warn
+                log entry tagged ``voice.event.decode_failed``.
+            """
+            raw_text = str(getattr(msg, 'data', '') or '')
+            try:
+                payload = json.loads(raw_text) if raw_text else {}
+            except Exception:
+                payload = {'status': 'decode_failed', 'message': raw_text}
+            if not isinstance(payload, dict):
+                payload = {'status': 'invalid_payload', 'payload': payload}
+            payload = {
+                **dict(payload),
+                'telemetryOnly': bool(payload.get('telemetryOnly', True)),
+                'actionExecutionBound': bool(payload.get('actionExecutionBound', False)),
+                'routing': str(payload.get('routing', 'observability_only') or 'observability_only'),
+            }
+            request_id = str(payload.get('requestId', '')) or None
+            correlation_id = str(payload.get('correlationId', '')) or None
+            task_run_id = str(payload.get('taskRunId', '')) or None
+            episode_id = str(payload.get('episodeId', '')) or None
+            task_id = str(payload.get('taskId', '')) or None
+            if task_id:
+                ctx_payload = self._state.request_context_payload(task_id) or {}
+                request_id = request_id or str(ctx_payload.get('requestId', '') or '') or None
+                correlation_id = correlation_id or str(ctx_payload.get('correlationId', '') or '') or None
+                task_run_id = task_run_id or str(ctx_payload.get('taskRunId', '') or '') or None
+                episode_id = episode_id or str(ctx_payload.get('episodeId', '') or '') or None
+            event_name = str(payload.get('event', payload.get('status', 'voice_event')) or 'voice_event')
+            level = str(payload.get('level', 'info') or 'info').lower()
+            if level not in {'info', 'warn', 'error', 'fault'}:
+                level = 'info'
+            self._voice_event_seq += 1
+            stored = self._state.append_log({
+                'id': f'log-voice-{self._voice_event_seq:06d}',
+                'timestamp': now_iso(),
+                'level': 'warn' if event_name == 'decode_failed' else level,
+                'module': 'voice.gateway',
+                'taskId': task_id,
+                'requestId': request_id,
+                'correlationId': correlation_id,
+                'taskRunId': task_run_id,
+                'episodeId': episode_id or task_run_id,
+                'stage': str(payload.get('stage', 'voice_telemetry')) or 'voice_telemetry',
+                'errorCode': str(payload.get('errorCode', '')) or None,
+                'operatorActionable': bool(payload.get('operatorActionable', False)),
+                'event': f'voice.event.{event_name}',
+                'message': str(payload.get('message', payload.get('status', 'voice event received'))),
+                'payload': dict(payload),
+            })
+            self._state.update_task_from_log(stored)
+            audit = self._state.append_audit({
+                'id': new_request_id('audit'),
+                'timestamp': now_iso(),
+                'action': 'voice.event',
+                'status': 'observed',
+                'role': 'system',
+                'requestId': request_id or new_request_id('voice'),
+                'correlationId': correlation_id,
+                'taskId': task_id,
+                'stage': str(payload.get('stage', 'voice_telemetry')) or 'voice_telemetry',
+                'errorCode': str(payload.get('errorCode', '')) or None,
+                'operatorActionable': bool(payload.get('operatorActionable', False)),
+                'message': str(payload.get('message', payload.get('status', 'voice event received'))),
+                'payload': dict(payload),
+            })
+            self._publisher.publish_topics_threadsafe('diagnostics', extra_events=[('log.event.created', stored), ('voice.event.created', stored), ('audit.event.created', audit)])
+
         def _on_log_event(self, msg: TaskEvent) -> None:
             payload = map_log_event_message(msg)
-            request_id, correlation_id, task_run_id = self._state.request_context(str(payload.get('taskId') or ''))
-            payload['requestId'] = payload.get('requestId') or request_id
-            payload['correlationId'] = payload.get('correlationId') or correlation_id
-            payload['taskRunId'] = payload.get('taskRunId') or task_run_id
+            context_payload = self._state.request_context_payload(str(payload.get('taskId') or '')) or {}
+            payload['requestId'] = payload.get('requestId') or context_payload.get('requestId')
+            payload['correlationId'] = payload.get('correlationId') or context_payload.get('correlationId')
+            payload['taskRunId'] = payload.get('taskRunId') or context_payload.get('taskRunId')
+            payload['episodeId'] = payload.get('episodeId') or context_payload.get('episodeId') or payload.get('taskRunId') or context_payload.get('taskRunId')
             stored = self._state.append_log(payload)
             self._state.update_task_from_log(stored)
             self._publisher.publish_topics_threadsafe('diagnostics', extra_events=[('log.event.created', stored)])

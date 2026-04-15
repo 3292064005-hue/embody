@@ -14,6 +14,7 @@ except Exception:  # pragma: no cover
     yaml = None
 
 from .moveit_client import PlanResult, PlanningRequest
+from .runtime_live_backend import RuntimeServicePlanningBackend
 
 DEFAULT_BACKEND_PROFILE_NAME = 'validated_sim_default'
 DEFAULT_BACKEND_CONFIG_PATH = (
@@ -27,7 +28,7 @@ class PlanningBackendProfile:
 
     Args:
         name: Stable profile identifier.
-        plugin: Backend plugin type such as ``deterministic_simulation`` or ``http_bridge``.
+        plugin: Backend plugin type such as ``deterministic_simulation``, ``runtime_service_bridge`` or ``http_bridge``.
         declared: Whether the backend is intentionally declared for runtime use.
         capability_mode: Capability supported by the profile.
         planner_plugin: Planner plugin label published in summaries.
@@ -468,6 +469,10 @@ def resolve_planning_backend(
     backend_callable: Callable[[PlanningRequest], PlanResult] | None
     if profile.plugin == 'deterministic_simulation':
         backend_callable = DeterministicSimulationBackend(profile, backend_name=backend_name)
+    elif profile.plugin == 'runtime_service_bridge' and profile.declared:
+        backend_callable = RuntimeServicePlanningBackend(profile, backend_name=backend_name)
+    elif profile.plugin == 'runtime_service_bridge':
+        backend_callable = None
     elif profile.plugin == 'http_bridge' and profile.declared:
         backend_callable = HttpPlanningBackend(profile, backend_name=backend_name)
     elif profile.plugin == 'http_bridge':
