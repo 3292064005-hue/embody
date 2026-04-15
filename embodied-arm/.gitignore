@@ -1,2 +1,32 @@
-# Generated active ROS overlay workspace
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+
+# Node / frontend outputs
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# ROS / colcon workspaces
 upper_computer/backend/embodied_arm_ws/.active_overlay/
+upper_computer/backend/embodied_arm_ws/build/
+upper_computer/backend/embodied_arm_ws/install/
+upper_computer/backend/embodied_arm_ws/log/
+
+# PlatformIO / firmware outputs
+.pio/
+esp32s3_platformio/.pio/
+stm32f103c8_platformio/.pio/
+
+# Generated validation and release artifacts
+artifacts/*
+!artifacts/split_release_manifest.json
+upper_computer/artifacts/
+*.zip

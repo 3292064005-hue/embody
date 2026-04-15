@@ -18,17 +18,17 @@ verify-repo:
 test: verify
 
 test-backend:
-	cd $(BACKEND) && python -m pytest -q -c pytest-active.ini
+	cd $(BACKEND) && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH= python -m pytest -q -c pytest-active.ini
 
 # Full-tree backend regression remains available for compatibility sweeps.
 test-backend-full:
-	cd $(BACKEND) && python -m pytest -q
+	cd $(BACKEND) && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH= python -m pytest -q
 
 test-backend-active:
-	cd $(BACKEND) && python -m pytest -q -c pytest-active.ini
+	cd $(BACKEND) && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH= python -m pytest -q -c pytest-active.ini
 
 test-gateway:
-	cd $(ROOT) && python -m pytest -q gateway/tests
+	cd $(ROOT) && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH= python -m pytest -q gateway/tests
 
 
 test-backend-active-consistency:
@@ -46,7 +46,7 @@ test-frontend-e2e:
 	cd $(FRONTEND) && npm run test:e2e
 
 audit:
-	python scripts/final_audit.py
+	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=$(ROOT) python scripts/final_audit.py
 
 frontend-build:
 	bash scripts/ensure_frontend_deps.sh
@@ -87,7 +87,7 @@ ros-target-validate:
 	bash scripts/ros_target_validation.sh
 
 contract-test:
-	pytest -q gateway/tests/test_server.py gateway/tests/test_runtime_contracts.py backend/embodied_arm_ws/tests/test_launch_integrity.py backend/embodied_arm_ws/tests/test_calibration_manager_node_instantiation.py backend/embodied_arm_ws/tests/test_ros_launch_smoke.py backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py
+	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH= pytest -q gateway/tests/test_server.py gateway/tests/test_runtime_contracts.py backend/embodied_arm_ws/tests/test_launch_integrity.py backend/embodied_arm_ws/tests/test_calibration_manager_node_instantiation.py backend/embodied_arm_ws/tests/test_ros_launch_smoke.py backend/embodied_arm_ws/tests/test_gateway_dispatcher_feedback_roundtrip.py
 
 
 target-env-bootstrap:

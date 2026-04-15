@@ -22,25 +22,30 @@ function systemChromiumBlocked() {
   }
 }
 
+function systemChromiumUsable() {
+  return fs.existsSync('/usr/bin/chromium') && !systemChromiumBlocked();
+}
+
 function hasBundledChromium() {
   const cacheRoot = path.join(os.homedir(), '.cache', 'ms-playwright');
   if (!fs.existsSync(cacheRoot)) {
     return false;
   }
   const candidates = fs.readdirSync(cacheRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('chromium-'))
+    .filter((entry) => entry.isDirectory() && (entry.name.startsWith('chromium-') || entry.name.startsWith('chromium_headless_shell-')))
     .flatMap((entry) => [
       path.join(cacheRoot, entry.name, 'chrome-linux', 'chrome'),
       path.join(cacheRoot, entry.name, 'chrome-linux64', 'chrome'),
+      path.join(cacheRoot, entry.name, 'chrome-headless-shell-linux64', 'chrome-headless-shell'),
       path.join(cacheRoot, entry.name, 'headless_shell'),
       path.join(cacheRoot, entry.name, 'chrome')
     ]);
   return candidates.some((candidate) => fs.existsSync(candidate));
 }
 
-const shouldSkip = !process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE && systemChromiumBlocked() && !hasBundledChromium();
+const shouldSkip = !process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE && !systemChromiumUsable() && !hasBundledChromium();
 if (shouldSkip) {
-  const message = '[frontend:e2e] skipped: system chromium is policy-blocked and no Playwright-managed Chromium is installed.';
+  const message = '[frontend:e2e] skipped: no usable Chromium executable is available.';
   fs.mkdirSync(artifactsDir, { recursive: true });
   fs.writeFileSync(skipLog, message + '\n', 'utf-8');
   console.log(message);

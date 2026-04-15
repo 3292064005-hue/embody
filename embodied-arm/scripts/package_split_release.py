@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / 'artifacts'
 MANIFEST_PATH = ARTIFACTS / 'split_release_manifest.json'
 ARCHIVE_PATH = ARTIFACTS / 'embodied-arm-split-release.zip'
-EXCLUDED_PARTS = {'__pycache__', '.pytest_cache', 'node_modules', '.pio', 'build', 'install', 'log', 'artifacts'}
+EXCLUDED_PARTS = {'__pycache__', '.pytest_cache', 'node_modules', '.pio', 'build', 'install', 'log', 'artifacts', 'dist', 'test-results'}
 EXCLUDED_SUFFIXES = {'.pyc', '.tsbuildinfo', '.zip'}
 EXCLUDED_PREFIXES = {
     Path('upper_computer/backend/embodied_arm_ws/src/arm_hmi'),

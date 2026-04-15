@@ -13,6 +13,11 @@ ROOT = Path(__file__).resolve().parents[3]
 def _require_ros_runtime() -> None:
     if shutil.which('ros2') is None or shutil.which('colcon') is None:
         pytest.skip('ROS2 / colcon runtime unavailable in this environment')
+    try:
+        import rclpy  # noqa: F401
+        from rclpy.executors import MultiThreadedExecutor  # noqa: F401
+    except Exception as exc:
+        pytest.skip(f'ROS2 Python runtime unavailable in this environment: {exc}')
 
 
 class _RosRuntimeHarness:

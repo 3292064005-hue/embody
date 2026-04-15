@@ -9,6 +9,29 @@ from arm_common import ServiceNames
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'src'
+_MISSING = object()
+_STUBBED_MODULE_NAMES = (
+    'rclpy',
+    'rclpy.node',
+    'rclpy.qos',
+    'std_msgs',
+    'std_msgs.msg',
+    'std_srvs',
+    'std_srvs.srv',
+    'arm_calibration.calibration_manager_node',
+)
+
+
+def _snapshot_stubbed_modules():
+    return {name: sys.modules.get(name, _MISSING) for name in _STUBBED_MODULE_NAMES}
+
+
+def _restore_stubbed_modules(snapshot) -> None:
+    for name, module in snapshot.items():
+        if module is _MISSING:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = module
 
 
 class _FakeParameterValue:
@@ -136,25 +159,24 @@ def _load_module():
 
 
 def test_calibration_manager_node_registers_activate_callback_without_missing_attribute():
-    module = _load_module()
-    node = module.CalibrationManagerNode()
-    service_names = [name for _srv_type, name, _callback in node.services]
-    callbacks = {name: callback for _srv_type, name, callback in node.services}
-    assert ServiceNames.ACTIVATE_CALIBRATION in service_names
-    assert callable(callbacks[ServiceNames.ACTIVATE_CALIBRATION])
+    snapshot = _snapshot_stubbed_modules()
+    try:
+        module = _load_module()
+        node = module.CalibrationManagerNode()
+        service_names = [name for _srv_type, name, _callback in node.services]
+        callbacks = {name: callback for _srv_type, name, callback in node.services}
+        assert ServiceNames.ACTIVATE_CALIBRATION in service_names
+        assert callable(callbacks[ServiceNames.ACTIVATE_CALIBRATION])
+    finally:
+        _restore_stubbed_modules(snapshot)
 
 
 def test_calibration_manager_node_instantiates_even_if_lifecycle_support_loaded_before_ros_node_stub():
     import arm_backend_common.lifecycle_support as lifecycle_support
 
-    original_rclpy = sys.modules.pop('rclpy', None)
-    original_rclpy_node = sys.modules.pop('rclpy.node', None)
-    original_qos = sys.modules.pop('rclpy.qos', None)
-    original_std_msgs = sys.modules.pop('std_msgs', None)
-    original_std_msgs_msg = sys.modules.pop('std_msgs.msg', None)
-    original_std_srvs = sys.modules.pop('std_srvs', None)
-    original_std_srvs_srv = sys.modules.pop('std_srvs.srv', None)
-    original_module = sys.modules.pop('arm_calibration.calibration_manager_node', None)
+    snapshot = _snapshot_stubbed_modules()
+    for name in _STUBBED_MODULE_NAMES:
+        sys.modules.pop(name, None)
     try:
         importlib.reload(lifecycle_support)
         module = _load_module()
@@ -162,18 +184,5 @@ def test_calibration_manager_node_instantiates_even_if_lifecycle_support_loaded_
         assert callable(node.get_logger)
         assert any(name == ServiceNames.ACTIVATE_CALIBRATION for _srv_type, name, _callback in node.services)
     finally:
-        def _restore(name, module):
-            if module is None:
-                sys.modules.pop(name, None)
-            else:
-                sys.modules[name] = module
-        _restore('rclpy', original_rclpy)
-        _restore('rclpy.node', original_rclpy_node)
-        _restore('rclpy.qos', original_qos)
-        _restore('std_msgs', original_std_msgs)
-        _restore('std_msgs.msg', original_std_msgs_msg)
-        _restore('std_srvs', original_std_srvs)
-        _restore('std_srvs.srv', original_std_srvs_srv)
-        if original_module is not None:
-            sys.modules['arm_calibration.calibration_manager_node'] = original_module
+        _restore_stubbed_modules(snapshot)
         importlib.reload(lifecycle_support)

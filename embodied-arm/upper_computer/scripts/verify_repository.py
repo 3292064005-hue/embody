@@ -21,6 +21,29 @@ BACKEND_DIR = ROOT_DIR / 'backend' / 'embodied_arm_ws'
 FRONTEND_DIR = ROOT_DIR / 'frontend'
 
 
+def repo_python_env() -> dict[str, str]:
+    """Keep repository Python runs isolated from host ROS Python overlays.
+
+    ROS 2 Humble commonly injects Python 3.10 site-packages into PYTHONPATH.
+    Repository verification may run under a different interpreter, and those
+    host paths can make pytest autoload ROS plugins or import ROS packages
+    before the repo-local modules. Putting the repo root first also keeps
+    ``import scripts.*`` bound to this repository instead of ROS packages.
+    Target-runtime checks source ROS explicitly; this repo lane should stay
+    interpreter-local.
+    """
+    env = {'PYTHONDONTWRITEBYTECODE': '1'}
+    filtered = [str(ROOT_DIR)]
+    pythonpath = os.environ.get('PYTHONPATH')
+    if pythonpath:
+        filtered.extend(
+            entry for entry in pythonpath.split(os.pathsep)
+            if entry and '/opt/ros/' not in entry
+        )
+    env['PYTHONPATH'] = os.pathsep.join(filtered)
+    return env
+
+
 def clean_hygiene_residue() -> None:
     for pattern in ('__pycache__', '.pytest_cache'):
         for path in ROOT_DIR.rglob(pattern):
@@ -97,24 +120,25 @@ def run_step(name: str, command: Sequence[str], *, cwd: Path | None = None, env:
 def build_steps(profile: str) -> list[tuple[str, Sequence[str], Path | None, dict[str, str] | None]]:
     python = sys.executable
     steps: list[tuple[str, Sequence[str], Path | None, dict[str, str] | None]] = []
+    python_env = repo_python_env()
     if profile == 'repo':
-        steps.append(('backend-full', [python, '-m', 'pytest', '-q', '-p', 'no:cacheprovider'], BACKEND_DIR, {'PYTHONDONTWRITEBYTECODE': '1'}))
+        steps.append(('backend-full', [python, '-m', 'pytest', '-q', '-p', 'no:cacheprovider'], BACKEND_DIR, python_env))
     steps.extend([
-        ('backend-active', [python, '-m', 'pytest', '-q', '-c', 'pytest-active.ini', '-p', 'no:cacheprovider'], BACKEND_DIR, {'PYTHONDONTWRITEBYTECODE': '1'}),
-        ('active-profile-consistency', [python, str(ROOT_DIR / 'scripts' / 'check_active_profile_consistency.py')], ROOT_DIR, None),
-        ('deprecated-runtime-usage', [python, str(ROOT_DIR / 'scripts' / 'check_deprecated_runtime_usage.py')], ROOT_DIR, None),
-        ('interface-mirror-drift', [python, str(ROOT_DIR / 'scripts' / 'sync_interface_mirror.py'), '--check'], ROOT_DIR, None),
-        ('contract-artifacts', [python, str(ROOT_DIR / 'scripts' / 'generate_contract_artifacts.py'), '--check'], ROOT_DIR, None),
-        ('runtime-contracts', [python, str(ROOT_DIR / 'scripts' / 'validate_runtime_contracts.py')], ROOT_DIR, None),
-        ('runtime-baseline-report', [python, str(ROOT_DIR / 'scripts' / 'generate_runtime_baseline_report.py'), '--root', str(ROOT_DIR / 'gateway' / 'tests' / 'fixtures' / 'observability_sample'), '--output', str(ROOT_DIR / 'artifacts' / 'release_gates' / 'runtime_baseline_repo_sample.json')], ROOT_DIR, None),
-        ('gateway', [python, '-m', 'pytest', '-q', 'gateway/tests', '-p', 'no:cacheprovider'], ROOT_DIR, {'PYTHONDONTWRITEBYTECODE': '1'}),
+        ('backend-active', [python, '-m', 'pytest', '-q', '-c', 'pytest-active.ini', '-p', 'no:cacheprovider'], BACKEND_DIR, python_env),
+        ('active-profile-consistency', [python, str(ROOT_DIR / 'scripts' / 'check_active_profile_consistency.py')], ROOT_DIR, python_env),
+        ('deprecated-runtime-usage', [python, str(ROOT_DIR / 'scripts' / 'check_deprecated_runtime_usage.py')], ROOT_DIR, python_env),
+        ('interface-mirror-drift', [python, str(ROOT_DIR / 'scripts' / 'sync_interface_mirror.py'), '--check'], ROOT_DIR, python_env),
+        ('contract-artifacts', [python, str(ROOT_DIR / 'scripts' / 'generate_contract_artifacts.py'), '--check'], ROOT_DIR, python_env),
+        ('runtime-contracts', [python, str(ROOT_DIR / 'scripts' / 'validate_runtime_contracts.py')], ROOT_DIR, python_env),
+        ('runtime-baseline-report', [python, str(ROOT_DIR / 'scripts' / 'generate_runtime_baseline_report.py'), '--root', str(ROOT_DIR / 'gateway' / 'tests' / 'fixtures' / 'observability_sample'), '--output', str(ROOT_DIR / 'artifacts' / 'release_gates' / 'runtime_baseline_repo_sample.json')], ROOT_DIR, python_env),
+        ('gateway', [python, '-m', 'pytest', '-q', 'gateway/tests', '-p', 'no:cacheprovider'], ROOT_DIR, python_env),
         ('frontend-deps', ['bash', 'scripts/ensure_frontend_deps.sh'], ROOT_DIR, None),
         ('frontend-typecheck-app', ['npm', 'run', 'typecheck'], FRONTEND_DIR, None),
         ('frontend-typecheck-test', ['npm', 'run', 'typecheck:test'], FRONTEND_DIR, None),
         ('frontend-unit', ['npm', 'run', 'test:unit'], FRONTEND_DIR, None),
         ('frontend-build', ['npm', 'run', 'build'], FRONTEND_DIR, None),
         ('frontend-e2e', ['node', './scripts/run-playwright-e2e.mjs'], FRONTEND_DIR, None),
-        ('audit', [python, str(ROOT_DIR / 'scripts' / 'final_audit.py')], ROOT_DIR, None),
+        ('audit', [python, str(ROOT_DIR / 'scripts' / 'final_audit.py')], ROOT_DIR, python_env),
     ])
     return steps
 

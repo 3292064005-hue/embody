@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import os
 import sys
@@ -52,3 +53,21 @@ _pin_gateway_tests_to_repo_root()
 os.environ.setdefault('EMBODIED_ARM_RUNTIME_PROFILE', 'dev-hmi-mock')
 os.environ.setdefault('EMBODIED_ARM_ALLOW_SIMULATION_FALLBACK', 'true')
 os.environ.setdefault('EMBODIED_ARM_ENABLE_LOCAL_PREVIEW_COMMANDS', 'true')
+
+
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'asyncio: run async test functions with asyncio')
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    if pyfuncitem.get_closest_marker('asyncio') is None:
+        return None
+    testfunction = pyfuncitem.obj
+    if not inspect.iscoroutinefunction(testfunction):
+        return None
+    kwargs = {
+        name: pyfuncitem.funcargs[name]
+        for name in pyfuncitem._fixtureinfo.argnames
+    }
+    asyncio.run(testfunction(**kwargs))
+    return True
