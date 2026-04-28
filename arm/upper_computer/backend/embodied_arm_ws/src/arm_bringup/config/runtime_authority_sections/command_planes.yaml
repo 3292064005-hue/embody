@@ -1,0 +1,54 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+command_planes:
+  task_control:
+    entrypoint: runtime_command_gateway
+    release_track: official_active
+    producer: runtime_task_control
+    allowed_roles:
+    - operator
+    - maintainer
+    dispatch_mode: workflow_authoritative
+    receipt_class: workflow_command
+    runtime_interface: task_command_gateway
+    audit_required: true
+  manual_control:
+    entrypoint: runtime_command_gateway
+    release_track: official_active
+    producer: gateway_manual_control
+    allowed_roles:
+    - maintainer
+    dispatch_mode: direct_hardware_command
+    receipt_class: manual_command
+    runtime_interface: manual_command_gateway
+    audit_required: true
+  system_control:
+    entrypoint: runtime_command_gateway
+    release_track: official_active
+    producer: gateway_system_control
+    allowed_roles:
+    - operator
+    - maintainer
+    dispatch_mode: runtime_control
+    receipt_class: system_command
+    runtime_interface: system_command_gateway
+    audit_required: true
+  voice_observability:
+    entrypoint: esp32_gateway_observability
+    release_track: official_active
+    producer: esp32_voice_events
+    allowed_roles:
+    - system
+    dispatch_mode: observability_only
+    receipt_class: observability_event
+    runtime_interface: voice_event_ingress
+    audit_required: true
+  vision_observability:
+    entrypoint: runtime_ingress_projection
+    release_track: official_active
+    producer: vision_runtime_ingress
+    allowed_roles:
+    - system
+    dispatch_mode: observability_only
+    receipt_class: observability_event
+    runtime_interface: vision_event_ingress
+    audit_required: false

@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  repo-validation:
+    runs-on: ubuntu-22.04
+    env:
+      EMBODIED_ARM_BUILD_PROFILE: release
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE: /usr/bin/chromium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - run: npm install -g npm@10.9.2
+      - name: Install Playwright Chromium
+        run: |
+          cd upper_computer/frontend
+          npx playwright install --with-deps chromium
+      - name: Frontend typecheck entrypoint smoke
+        run: |
+          cd upper_computer
+          bash scripts/ensure_frontend_deps.sh
+          cd frontend
+          npm run typecheck:test
+      - run: python upper_computer/scripts/verify_repository.py --profile repo
+
+  ros-humble:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialize active overlay
+        run: |
+          cd upper_computer
+          ACTIVE_OVERLAY=$(python scripts/materialize_active_ros_overlay.py --print-root)
+          echo "ACTIVE_OVERLAY=$ACTIVE_OVERLAY" >> "$GITHUB_ENV"
+      - name: Install ROS deps
+        run: |
+          cd upper_computer
+          rosdep install --from-paths "$ACTIVE_OVERLAY/src" --ignore-src -r -y --rosdistro humble
+      - name: Build overlay
+        run: |
+          cd upper_computer/backend/embodied_arm_ws
+          colcon build --symlink-install
+      - name: ROS smoke
+        run: |
+          cd upper_computer/backend/embodied_arm_ws
+          pytest -q tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py

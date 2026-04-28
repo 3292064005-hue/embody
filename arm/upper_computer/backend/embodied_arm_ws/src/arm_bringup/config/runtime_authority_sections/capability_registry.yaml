@@ -1,0 +1,90 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+capability_registry:
+  schema_version: 1
+  plugins:
+    single_target:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+    selector_routed:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+    continuous:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+  runtime_interfaces:
+    task_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: task_control
+    manual_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: manual_control
+    system_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: system_control
+    voice_event_ingress:
+      state: active
+      owner: gateway_ros_bridge
+      surface: observability_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: voice_observability
+    vision_event_ingress:
+      state: active
+      owner: runtime_ingress
+      surface: observability_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: vision_observability
+    INTERNAL_PLAN_TO_POSE:
+      state: reserved
+      owner: motion_planner
+      surface: internal_runtime_input
+    INTERNAL_PLAN_TO_JOINTS:
+      state: reserved
+      owner: motion_planner
+      surface: internal_runtime_input
+    ManualServo.action:
+      state: experimental
+      owner: motion_planner
+      surface: experimental_runtime_action
+    HomeSequence.action:
+      state: experimental
+      owner: motion_executor
+      surface: experimental_runtime_action
+  execution_producers:
+    ros2_control_backbone:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: arm_motion_executor
+      contract_version: 1
+      schema_version: 1
+    ros2_control:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: ros2_control_backbone
+      contract_version: 1
+      schema_version: 1
+    arm_hardware_interface:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: arm_hardware_bridge
+      contract_version: 1
+      schema_version: 1

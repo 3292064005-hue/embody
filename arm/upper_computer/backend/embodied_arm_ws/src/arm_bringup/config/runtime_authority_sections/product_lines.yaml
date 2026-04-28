@@ -1,0 +1,36 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+product_lines:
+  preview:
+    label: Preview / Contract Only
+    description: 仅用于能力验证、链路联调与只读工作台。
+    task_workbench_visible: false
+    task_execution_interactive: false
+    runtime_badge: PREVIEW
+    promotion_controlled: false
+    promotion_effective: false
+    promotion_missing: []
+    release_channel: official_active
+    publicly_exposed: true
+  validated_sim:
+    label: Validated Simulation
+    description: 已验证仿真 authoritative lane，可进入正式任务工作台。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    runtime_badge: VALIDATED_SIM
+    promotion_controlled: false
+    promotion_effective: true
+    promotion_missing: []
+    release_channel: official_active
+    publicly_exposed: true
+  validated_live:
+    label: Validated Live Hardware
+    description: 已验证真机 authoritative lane；promotion 生效后公开任务工作台，当前缺失项必须显式展示且 startTask
+      仅按实时门禁 disabled。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    runtime_badge: VALIDATED_LIVE
+    promotion_controlled: true
+    promotion_effective: true
+    promotion_missing: []
+    release_channel: experimental
+    publicly_exposed: true

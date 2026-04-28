@@ -1,0 +1,91 @@
+version: 4
+root: pick_place_root
+nodes:
+  pick_place_root:
+    type: fallback
+    children:
+      - retry_flow
+      - recovery_flow
+      - active_flow
+  retry_flow:
+    type: sequence
+    children:
+      - retry_pending
+      - auto_retry_enabled
+      - automatic_retry_budget_available
+      - dispatch_retry
+  retry_pending:
+    type: condition
+    check: retry_pending
+  auto_retry_enabled:
+    type: condition
+    check: auto_retry_enabled
+  automatic_retry_budget_available:
+    type: condition
+    check: automatic_retry_budget_available
+  dispatch_retry:
+    type: action
+    event: retry_requested
+  recovery_flow:
+    type: sequence
+    children:
+      - recovery_gate
+      - dispatch_recovery
+  recovery_gate:
+    type: fallback
+    children:
+      - recovery_pending
+      - manual_recovery_retry_gate
+  recovery_pending:
+    type: condition
+    check: recovery_pending
+  manual_recovery_retry_gate:
+    type: sequence
+    children:
+      - retry_pending
+      - manual_recovery_preferred
+      - retry_budget_available
+  manual_recovery_preferred:
+    type: condition
+    check: manual_recovery_preferred
+  retry_budget_available:
+    type: condition
+    check: retry_budget_available
+  dispatch_recovery:
+    type: action
+    event: recovery_requested
+  active_flow:
+    type: sequence
+    children:
+      - dispatch_perception
+      - ensure_planner_ready
+      - plan_dispatch_ready
+      - dispatch_plan
+      - execution_dispatch_ready
+      - dispatch_execute
+      - verification_dispatch_ready
+      - dispatch_verify
+  dispatch_perception:
+    type: action
+    event: perception_requested
+  ensure_planner_ready:
+    type: condition
+    check: motion_planner
+  plan_dispatch_ready:
+    type: condition
+    check: plan_dispatch_ready
+  dispatch_plan:
+    type: action
+    event: plan_requested
+  execution_dispatch_ready:
+    type: condition
+    check: execution_dispatch_ready
+  dispatch_execute:
+    type: action
+    event: execution_requested
+  verification_dispatch_ready:
+    type: condition
+    check: verification_dispatch_ready
+  dispatch_verify:
+    type: action
+    event: verification_completed

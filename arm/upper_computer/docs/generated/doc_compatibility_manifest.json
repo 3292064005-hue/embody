@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "upper_computer/scripts/sync_doc_compatibility_mirrors.py",
+  "entries": [
+    {
+      "legacyPath": "docs/FIRMWARE_SPLIT_INTEGRATION.md",
+      "canonicalPath": "docs/operations/firmware-integration.md",
+      "status": "generated compatibility mirror",
+      "generator": "upper_computer/scripts/sync_doc_compatibility_mirrors.py",
+      "scope": "firmware_routes_and_split_responsibilities"
+    },
+    {
+      "legacyPath": "docs/SERIAL_PROTOCOL.md",
+      "canonicalPath": "docs/interfaces/stm32-serial-protocol.md",
+      "status": "generated compatibility mirror",
+      "generator": "upper_computer/scripts/sync_doc_compatibility_mirrors.py",
+      "scope": "stm32_serial_contract_and_command_ids"
+    },
+    {
+      "legacyPath": "docs/FRONTEND_VALIDATION_STATUS.md",
+      "canonicalPath": "docs/evidence/frontend-validation-status.md",
+      "status": "generated compatibility mirror",
+      "generator": "upper_computer/scripts/sync_doc_compatibility_mirrors.py",
+      "scope": "frontend_validation_matrix_and_release_evidence"
+    },
+    {
+      "legacyPath": "docs/CONTRACT_INDEX.md",
+      "canonicalPath": "docs/interfaces/api-contract.md",
+      "status": "generated compatibility mirror",
+      "generator": "upper_computer/scripts/generate_contract_artifacts.py",
+      "scope": "generated_contract_index_and_runtime_contract_artifacts"
+    },
+    {
+      "legacyPath": "docs/ROS2_INTERFACE_INDEX.md",
+      "canonicalPath": "docs/interfaces/ros2-interface-index.md",
+      "status": "generated compatibility mirror",
+      "generator": "upper_computer/scripts/generate_contract_artifacts.py",
+      "scope": "generated_ros2_interface_index_and_runtime_lane_projection"
+    }
+  ]
+}

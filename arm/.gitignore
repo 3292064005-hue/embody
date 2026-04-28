@@ -1,0 +1,6 @@
+# Generated ROS overlay workspace
+upper_computer/backend/embodied_arm_ws/.active_overlay/
+
+# Release artifacts
+embodied-arm-fullstack-release.zip
+embodied-arm-split-release.zip

@@ -1,0 +1,41 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+validated_sim:
+  promotion_mode: manual
+  promoted: true
+  receipt_id: validated-sim-baseline
+  checked_by: repository-ci
+  checked_at: '2026-04-08T00:00:00Z'
+  required_evidence:
+  - backend-active
+  - gateway
+  - contract-artifacts
+  - runtime-contracts
+  evidence:
+  - backend-active
+  - gateway
+  - contract-artifacts
+  - runtime-contracts
+  reason: ''
+  effective: true
+  missing_evidence: []
+  auto_generated: false
+validated_live:
+  promotion_mode: automatic_when_ready
+  promoted: true
+  receipt_id: validated_live-auto-promotion
+  checked_by: runtime-authority-auto-promoter
+  checked_at: automatic_when_ready
+  required_evidence:
+  - validated_live_backbone_declared
+  - target_runtime_gate_passed
+  - hil_gate_passed
+  - release_checklist_signed
+  evidence:
+  - validated_live_backbone_declared
+  - target_runtime_gate_passed
+  - hil_gate_passed
+  - release_checklist_signed
+  reason: experimental_validated_live_is_removed_from_default_product_surface_until_repromoted
+  effective: true
+  missing_evidence: []
+  auto_generated: true

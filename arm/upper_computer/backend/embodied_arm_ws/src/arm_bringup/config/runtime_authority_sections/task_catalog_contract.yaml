@@ -1,0 +1,15 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+task_catalog_contract:
+  schema_version: 2
+  supported_schema_versions:
+  - 2
+  template_version: 2
+  plugin_contract_version: 1
+  compatibility_policy:
+    fail_on_unknown_plugin: true
+    fail_on_schema_drift: true
+    fail_on_experimental_plugin: true
+    runtime_tier_order:
+    - preview
+    - validated_sim
+    - validated_live

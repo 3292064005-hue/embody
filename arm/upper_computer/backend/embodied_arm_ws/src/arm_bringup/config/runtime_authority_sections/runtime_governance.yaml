@@ -1,0 +1,33 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+runtime_governance:
+  default_runtime_lane: sim_preview
+  official_product_lines:
+  - preview
+  - validated_sim
+  experimental_product_lines:
+  - validated_live
+  official_runtime_lanes:
+  - sim_preview
+  - sim_perception_preview
+  - real_preview
+  - hybrid_preview
+  - hw_preview
+  - full_demo_preview
+  - sim_authoritative
+  - full_demo_authoritative
+  experimental_runtime_lanes:
+  - live_proto
+  - live_control
+  - real_validated_live
+  lane_classification:
+    sim_preview: official_active
+    sim_perception_preview: official_active
+    real_preview: official_active
+    hybrid_preview: official_active
+    hw_preview: official_active
+    full_demo_preview: official_active
+    sim_authoritative: official_active
+    full_demo_authoritative: official_active
+    live_proto: experimental
+    live_control: experimental
+    real_validated_live: experimental

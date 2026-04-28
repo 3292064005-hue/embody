@@ -1,0 +1,665 @@
+# Generated from runtime_authority.yaml. Do not edit manually.
+schema_version: 2
+catalog_contract:
+  schema_version: 2
+  supported_schema_versions:
+  - 2
+  template_version: 2
+  plugin_contract_version: 1
+  compatibility_policy:
+    fail_on_unknown_plugin: true
+    fail_on_schema_drift: true
+    fail_on_experimental_plugin: true
+    runtime_tier_order:
+    - preview
+    - validated_sim
+    - validated_live
+capability_registry:
+  schema_version: 1
+  plugins:
+    single_target:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+    selector_routed:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+    continuous:
+      state: active
+      surface: public_task_catalog
+      contract_version: 1
+  runtime_interfaces:
+    task_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: task_control
+    manual_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: manual_control
+    system_command_gateway:
+      state: active
+      owner: gateway_ros_bridge
+      surface: official_runtime_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: system_control
+    voice_event_ingress:
+      state: active
+      owner: gateway_ros_bridge
+      surface: observability_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: voice_observability
+    vision_event_ingress:
+      state: active
+      owner: runtime_ingress
+      surface: observability_ingress
+      contract_version: 1
+      entrypoint: runtime_command_gateway
+      command_plane: vision_observability
+    INTERNAL_PLAN_TO_POSE:
+      state: reserved
+      owner: motion_planner
+      surface: internal_runtime_input
+    INTERNAL_PLAN_TO_JOINTS:
+      state: reserved
+      owner: motion_planner
+      surface: internal_runtime_input
+    ManualServo.action:
+      state: experimental
+      owner: motion_planner
+      surface: experimental_runtime_action
+    HomeSequence.action:
+      state: experimental
+      owner: motion_executor
+      surface: experimental_runtime_action
+  execution_producers:
+    ros2_control_backbone:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: arm_motion_executor
+      contract_version: 1
+      schema_version: 1
+    ros2_control:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: ros2_control_backbone
+      contract_version: 1
+      schema_version: 1
+    arm_hardware_interface:
+      state: active
+      capability: joint_stream
+      command_plane: joint_stream
+      owner: arm_hardware_bridge
+      contract_version: 1
+      schema_version: 1
+product_lines:
+  preview:
+    label: Preview / Contract Only
+    description: 仅用于能力验证、链路联调与只读工作台。
+    task_workbench_visible: false
+    task_execution_interactive: false
+    release_channel: official_active
+    publicly_exposed: true
+  validated_sim:
+    label: Validated Simulation
+    description: 已验证仿真 authoritative lane，可进入正式任务工作台。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    release_channel: official_active
+    publicly_exposed: true
+  validated_live:
+    label: Validated Live Hardware
+    description: 已验证真机 authoritative lane；promotion 生效后公开任务工作台，当前缺失项必须显式展示且 startTask
+      仅按实时门禁 disabled。
+    task_workbench_visible: true
+    task_execution_interactive: true
+    release_channel: experimental
+    publicly_exposed: true
+templates:
+- id: pick-red
+  template_version: 2
+  name: 抓取红色目标
+  description: 单目标抓取并放置到红色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  resolved_place_profiles:
+    red: bin_red
+  risk_level: low
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:red
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: pick-red
+  task_graph:
+    graphKey: pick-red
+    entryNode: perception
+    sequenceMode: single_target
+    pluginKey: single_target
+    preconditions:
+    - readiness.target_available
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标确认
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 轨迹规划
+      terminal: false
+    - id: execute
+      kind: execution
+      stage: execution
+      label: 执行
+      terminal: false
+    - id: verify
+      kind: verification
+      stage: verification
+      label: 结果校验
+      terminal: true
+    edges:
+    - from: perception
+      to: plan
+      condition: target_locked
+    - from: plan
+      to: execute
+      condition: plan_ready
+    - from: execute
+      to: verify
+      condition: execution_done
+    recoveryPolicy: &id001
+      mode: retry_once_then_fail_closed
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id001
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: pick-red
+- id: pick-blue
+  template_version: 2
+  name: 抓取蓝色目标
+  description: 单目标抓取并放置到蓝色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: blue
+  allowed_target_categories:
+  - blue
+  resolved_place_profiles:
+    blue: bin_blue
+  risk_level: low
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 适合单目标验证链路与基础抓取验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:blue
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: pick-blue
+  task_graph:
+    graphKey: pick-blue
+    entryNode: perception
+    sequenceMode: single_target
+    pluginKey: single_target
+    preconditions:
+    - readiness.target_available
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标确认
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 轨迹规划
+      terminal: false
+    - id: execute
+      kind: execution
+      stage: execution
+      label: 执行
+      terminal: false
+    - id: verify
+      kind: verification
+      stage: verification
+      label: 结果校验
+      terminal: true
+    edges:
+    - from: perception
+      to: plan
+      condition: target_locked
+    - from: plan
+      to: execute
+      condition: plan_ready
+    - from: execute
+      to: verify
+      condition: execution_done
+    recoveryPolicy: &id002
+      mode: retry_once_then_fail_closed
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id002
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: pick-blue
+- id: pick-green
+  template_version: 2
+  name: 抓取绿色目标
+  description: 单目标抓取并放置到绿色料区。
+  frontend_task_type: pick_place
+  backend_task_type: PICK_AND_PLACE
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: green
+  allowed_target_categories:
+  - green
+  resolved_place_profiles:
+    green: bin_green
+  risk_level: low
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 适合绿色类目标的单目标搬运验收。
+  capability_tags:
+  - pick
+  - single_target
+  - color:green
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  sequence_mode: single_target
+  plugin_key: single_target
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: pick-green
+  task_graph:
+    graphKey: pick-green
+    entryNode: perception
+    sequenceMode: single_target
+    pluginKey: single_target
+    preconditions:
+    - readiness.target_available
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标确认
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 轨迹规划
+      terminal: false
+    - id: execute
+      kind: execution
+      stage: execution
+      label: 执行
+      terminal: false
+    - id: verify
+      kind: verification
+      stage: verification
+      label: 结果校验
+      terminal: true
+    edges:
+    - from: perception
+      to: plan
+      condition: target_locked
+    - from: plan
+      to: execute
+      condition: plan_ready
+    - from: execute
+      to: verify
+      condition: execution_done
+    recoveryPolicy: &id003
+      mode: retry_once_then_fail_closed
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id003
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: pick-green
+- id: sort-color
+  template_version: 2
+  name: 按颜色分拣
+  description: 按颜色选择器进行分拣，红/蓝/绿目标分别落入对应料区。
+  frontend_task_type: sort_by_color
+  backend_task_type: PICK_BY_COLOR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: red
+  allowed_target_categories:
+  - red
+  - blue
+  - green
+  resolved_place_profiles:
+    red: bin_red
+    blue: bin_blue
+    green: bin_green
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 需要颜色目标检测链路稳定。
+  capability_tags:
+  - sort
+  - color
+  - multi_selector
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: selector_routed
+  plugin_key: selector_routed
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: sort-color
+  task_graph:
+    graphKey: sort-color
+    entryNode: perception
+    sequenceMode: selector_routed
+    pluginKey: selector_routed
+    preconditions:
+    - readiness.target_available
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    - readiness.perception_alive
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标确认
+      terminal: false
+    - id: selector
+      kind: selection
+      stage: selection
+      label: 目标类别路由
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 轨迹规划
+      terminal: false
+    - id: execute
+      kind: execution
+      stage: execution
+      label: 执行
+      terminal: false
+    - id: verify
+      kind: verification
+      stage: verification
+      label: 结果校验
+      terminal: true
+    edges:
+    - from: perception
+      to: selector
+      condition: target_locked
+    - from: selector
+      to: plan
+      condition: selector_resolved
+    - from: plan
+      to: execute
+      condition: plan_ready
+    - from: execute
+      to: verify
+      condition: execution_done
+    recoveryPolicy: &id004
+      mode: selector_retarget_then_fail_closed
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id004
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: sort-color
+- id: sort-qr
+  template_version: 2
+  name: 二维码识别搬运
+  description: 根据二维码选择目标，当前统一落到默认料区，不宣称多料区二维码分拣能力。
+  frontend_task_type: sort_by_qr
+  backend_task_type: PICK_BY_QR
+  task_profile_path: task_pick_by_color.yaml
+  default_target_category: qr_a
+  allowed_target_categories:
+  - qr_a
+  - qr_b
+  - qr_c
+  resolved_place_profiles:
+    qr_a: default
+    qr_b: default
+    qr_c: default
+  risk_level: medium
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 当前二维码任务仅保证识别触发与默认料区搬运语义。
+  capability_tags:
+  - sort
+  - qr
+  - multi_selector
+  preconditions:
+  - readiness.target_available
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: selector_routed
+  plugin_key: selector_routed
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: sort-qr
+  task_graph:
+    graphKey: sort-qr
+    entryNode: perception
+    sequenceMode: selector_routed
+    pluginKey: selector_routed
+    preconditions:
+    - readiness.target_available
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    - readiness.perception_alive
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标确认
+      terminal: false
+    - id: selector
+      kind: selection
+      stage: selection
+      label: 目标类别路由
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 轨迹规划
+      terminal: false
+    - id: execute
+      kind: execution
+      stage: execution
+      label: 执行
+      terminal: false
+    - id: verify
+      kind: verification
+      stage: verification
+      label: 结果校验
+      terminal: true
+    edges:
+    - from: perception
+      to: selector
+      condition: target_locked
+    - from: selector
+      to: plan
+      condition: selector_resolved
+    - from: plan
+      to: execute
+      condition: plan_ready
+    - from: execute
+      to: verify
+      condition: execution_done
+    recoveryPolicy: &id005
+      mode: selector_retarget_then_fail_closed
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id005
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: sort-qr
+- id: clear-table
+  template_version: 2
+  name: 清台任务
+  description: 持续抓取当前工作台上全部可执行目标并放置到默认料区。
+  frontend_task_type: clear_table
+  backend_task_type: CLEAR_TABLE
+  task_profile_path: task_clear_table.yaml
+  default_target_category: null
+  allowed_target_categories: []
+  resolved_place_profiles:
+    default: default
+  risk_level: high
+  required_runtime_tier: validated_sim
+  runtime_tier_compatibility:
+  - validated_sim
+  - validated_live
+  operator_hint: 连续搬运任务，对感知、规划与执行链路稳定性要求更高。
+  capability_tags:
+  - clear_table
+  - continuous
+  - multi_target
+  preconditions:
+  - readiness.motion_planner
+  - readiness.hardware_bridge
+  - readiness.perception_alive
+  sequence_mode: continuous
+  plugin_key: continuous
+  plugin_contract_version: 1
+  plugin_state: active
+  graph_key: clear-table
+  task_graph:
+    graphKey: clear-table
+    entryNode: perception
+    sequenceMode: continuous
+    pluginKey: continuous
+    preconditions:
+    - readiness.motion_planner
+    - readiness.hardware_bridge
+    - readiness.perception_alive
+    nodes:
+    - id: perception
+      kind: perception
+      stage: perception
+      label: 目标扫描
+      terminal: false
+    - id: plan
+      kind: planning
+      stage: planning
+      label: 批次规划
+      terminal: false
+    - id: execute_batch
+      kind: execution
+      stage: execution
+      label: 批次执行
+      terminal: false
+    - id: verify_batch
+      kind: verification
+      stage: verification
+      label: 批次校验
+      terminal: false
+    - id: complete
+      kind: terminal
+      stage: terminal
+      label: 完成
+      terminal: true
+    edges:
+    - from: perception
+      to: plan
+      condition: next_target_available
+    - from: plan
+      to: execute_batch
+      condition: plan_ready
+    - from: execute_batch
+      to: verify_batch
+      condition: execution_done
+    - from: verify_batch
+      to: perception
+      condition: targets_remaining
+    - from: verify_batch
+      to: complete
+      condition: workspace_clear
+    recoveryPolicy: &id006
+      mode: batch_continue_with_failure_ledger
+      maxAutomaticRetry: 1
+      maxRetries: 2
+    recovery: *id006
+    auditSurface:
+    - perception
+    - plan
+    - execute
+    - verify
+    graphVersion: v1
+    templateId: clear-table
