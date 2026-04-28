@@ -3,19 +3,19 @@ import type { ReadinessState } from '@/models/readiness';
 import {
   emergencyStopCommand,
   fetchSystemReadiness,
+  getSystemSummary,
   homeRobotCommand,
   recoverRuntimeCommand,
   resetFaultCommand,
   type CommandTransportResult as GeneratedCommandTransportResult,
 } from '@/api/generated';
-import { apiClient, unwrapResponse } from './client';
 
 export async function fetchSystemSummary(): Promise<SystemState> {
-  return unwrapResponse(apiClient.get('/api/system/summary'));
+  return getSystemSummary();
 }
 
 export async function fetchReadiness(): Promise<ReadinessState> {
-  return fetchSystemReadiness();
+  return fetchSystemReadiness() as Promise<ReadinessState>;
 }
 
 export interface SystemCommandResult extends GeneratedCommandTransportResult {}

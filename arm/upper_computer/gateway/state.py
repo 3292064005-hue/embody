@@ -23,6 +23,7 @@ from .runtime_bootstrap import default_readiness_snapshot
 from .generated.runtime_contract import CAPABILITY_DESCRIPTORS, COMMAND_PLANES, COMMAND_REQUIRED_BY_NAME, PRODUCT_LINE_CAPABILITIES, PUBLIC_READINESS_FIELDS, TASK_CAPABILITY_REGISTRY
 from .runtime_config import (
     current_runtime_config_version,
+    get_runtime_config_health,
     load_firmware_semantic_profiles,
     load_manual_command_limits,
     load_release_gate_details,
@@ -312,6 +313,7 @@ def _build_runtime_surface_state(readiness: dict[str, Any]) -> dict[str, Any]:
         'commandSurfaceState': command_surface_state,
         'taskExecutionState': task_execution_state,
         'runtimeFingerprint': runtime_fingerprint,
+        'configHealth': get_runtime_config_health(),
     }
 
 

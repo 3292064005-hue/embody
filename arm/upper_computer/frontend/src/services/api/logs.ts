@@ -1,16 +1,16 @@
 import type { LogEvent } from '@/models/log';
 import type { CommandAuditRecord } from '@/models/audit';
 import type { CommandReceiptRecord } from '@/models/receipt';
-import { unwrapResponse, apiClient } from './client';
+import { getAuditLogRecords, getCommandReceiptRecords, getLogEvents } from '@/api/generated';
 
 export async function fetchLogs(): Promise<LogEvent[]> {
-  return unwrapResponse(apiClient.get('/api/logs/events'));
+  return getLogEvents();
 }
 
 export async function fetchAuditLogs(): Promise<CommandAuditRecord[]> {
-  return unwrapResponse(apiClient.get('/api/logs/audit'));
+  return getAuditLogRecords();
 }
 
 export async function fetchCommandReceipts(): Promise<CommandReceiptRecord[]> {
-  return unwrapResponse(apiClient.get('/api/logs/receipts'));
+  return getCommandReceiptRecords();
 }

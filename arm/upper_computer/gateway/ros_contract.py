@@ -29,6 +29,7 @@ except Exception:  # pragma: no cover - used outside the test harness
     class TopicNames:
         SYSTEM_STATE = '/arm/system/state'
         HARDWARE_STATE = '/arm/hardware/state'
+        HARDWARE_FEEDBACK = '/arm/hardware/feedback'
         VISION_TARGET = '/arm/vision/target'
         LOG_EVENT = '/arm/log/event'
         INTERNAL_HARDWARE_CMD = '/arm/internal/hardware_cmd'

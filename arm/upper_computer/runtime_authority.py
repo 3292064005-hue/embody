@@ -663,7 +663,13 @@ def derived_product_lines(authority: dict[str, Any]) -> dict[str, dict[str, Any]
         if tier_name == 'validated_live' and not backbone.declared and 'validated_live_backbone_declared' not in promotion_missing:
             promotion_missing.append('validated_live_backbone_declared')
         release_channel = 'official_active' if tier_name in governance.official_product_lines else 'experimental'
-        publicly_exposed = bool(payload.get('public_exposed', release_channel == 'official_active'))
+        declared_public_candidate = bool(payload.get('declared_public_candidate', payload.get('public_exposed', release_channel == 'official_active')))
+        effective_public_exposed = declared_public_candidate
+        if promotion_controlled and not receipt_state.effective:
+            effective_public_exposed = False
+        if 'effective_public_exposed' in payload:
+            effective_public_exposed = bool(payload.get('effective_public_exposed')) and effective_public_exposed
+        publicly_exposed = effective_public_exposed
         if promotion_controlled and not receipt_state.effective:
             task_workbench_visible = bool(payload.get('fail_closed_task_workbench_visible', False))
             task_execution_interactive = bool(payload.get('fail_closed_task_execution_interactive', False))
@@ -683,6 +689,8 @@ def derived_product_lines(authority: dict[str, Any]) -> dict[str, dict[str, Any]
             'promotion_effective': receipt_state.effective,
             'promotion_missing': promotion_missing,
             'release_channel': release_channel,
+            'declared_public_candidate': declared_public_candidate,
+            'effective_public_exposed': effective_public_exposed,
             'publicly_exposed': publicly_exposed,
         }
     return result
@@ -1080,6 +1088,8 @@ def derived_task_manifest(authority: dict[str, Any]) -> dict[str, Any]:
                 'task_workbench_visible': bool(value['task_workbench_visible']),
                 'task_execution_interactive': bool(value['task_execution_interactive']),
                 'release_channel': str(value.get('release_channel', 'official_active')),
+                'declared_public_candidate': bool(value.get('declared_public_candidate', value.get('publicly_exposed', True))),
+                'effective_public_exposed': bool(value.get('effective_public_exposed', value.get('publicly_exposed', True))),
                 'publicly_exposed': bool(value.get('publicly_exposed', True)),
             }
             for key, value in derived_product_lines(authority).items()

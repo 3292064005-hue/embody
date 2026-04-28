@@ -1,27 +1,26 @@
 <template>
   <section class="panel alarm-panel">
-    <div class="header-row">
+    <div class="panel-head">
       <div>
-        <div class="panel-title">告警</div>
-        <div class="subtle">最近故障与错误</div>
+        <div class="panel-title">Alarms</div>
+        <div class="subtle">Recent warning, error, and fault events</div>
       </div>
-      <span class="status-pill" :class="statusClass">
-        <span class="status-dot"></span>
-        {{ alarmCount }}
-      </span>
+      <el-tag :type="tagType">{{ alarmRecords.length }}</el-tag>
     </div>
 
-    <div v-if="latestAlarms.length" class="alarm-list">
-      <article v-for="item in latestAlarms" :key="item.id" class="alarm-item">
-        <div class="alarm-meta">
-          <span class="level" :class="`level-${item.level}`">{{ item.level }}</span>
-          <span class="subtle">{{ formatDateTime(item.timestamp) }}</span>
+    <div v-if="alarmRecords.length" class="alarm-list">
+      <div v-for="record in alarmRecords" :key="record.id" class="alarm-item" :class="`level-${record.level}`">
+        <div class="alarm-main">
+          <span class="level">{{ record.level.toUpperCase() }}</span>
+          <span class="message">{{ record.message || record.event }}</span>
         </div>
-        <div class="message">{{ item.message }}</div>
-        <div class="subtle source">{{ item.module }} / {{ item.event }}</div>
-      </article>
+        <div class="subtle meta">
+          <span>{{ formatDateTime(record.timestamp) }}</span>
+          <span>{{ record.module }}</span>
+        </div>
+      </div>
     </div>
-    <div v-else class="empty subtle">当前没有故障告警。</div>
+    <div v-else class="empty subtle">No active alarms</div>
   </section>
 </template>
 
@@ -31,24 +30,21 @@ import { useLogStore } from '@/stores/log';
 import { formatDateTime } from '@/utils/format';
 
 const logStore = useLogStore();
-
-const latestAlarms = computed(() => logStore.records
-  .filter((item) => item.level === 'fault' || item.level === 'error')
-  .slice(0, 4));
-
-const alarmCount = computed(() => latestAlarms.value.length);
-const statusClass = computed(() => (alarmCount.value > 0 ? 'status-danger' : 'status-ok'));
+const alarmRecords = computed(() => logStore.records.filter((item) => ['warn', 'error', 'fault'].includes(item.level)).slice(0, 6));
+const tagType = computed(() => alarmRecords.value.some((item) => item.level === 'fault' || item.level === 'error') ? 'danger' : alarmRecords.value.length ? 'warning' : 'success');
 </script>
 
 <style scoped>
 .alarm-panel { padding: 16px; }
-.header-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.alarm-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.alarm-item { border: 1px solid rgba(142, 160, 186, 0.2); border-radius: 8px; padding: 10px; background: rgba(255, 255, 255, 0.02); }
-.alarm-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
-.level { font-weight: 700; text-transform: uppercase; }
-.level-error, .level-fault { color: var(--danger); }
-.message { margin-top: 8px; line-height: 1.5; }
-.source { margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; }
-.empty { margin-top: 14px; line-height: 1.6; }
+.panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.alarm-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.alarm-item { padding: 10px 12px; border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; background: rgba(255,255,255,0.02); }
+.alarm-main { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.level { flex: 0 0 auto; font-size: 11px; font-weight: 800; color: var(--text-dim); }
+.message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { display: flex; gap: 10px; margin-top: 6px; font-size: 12px; }
+.empty { margin-top: 12px; }
+.level-warn { border-left-color: var(--warning); }
+.level-error,
+.level-fault { border-left-color: var(--danger); }
 </style>

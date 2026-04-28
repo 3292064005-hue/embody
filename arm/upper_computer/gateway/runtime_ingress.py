@@ -25,6 +25,8 @@ def bind_runtime_ingress(node: Any) -> None:
     """
     node.create_subscription(node.SystemState, node.TopicNames.SYSTEM_STATE, node._on_system_state, 20)
     node.create_subscription(node.HardwareState, node.TopicNames.HARDWARE_STATE, node._on_hardware_state, 20)
+    if hasattr(node.TopicNames, 'HARDWARE_FEEDBACK'):
+        node.create_subscription(node.String, node.TopicNames.HARDWARE_FEEDBACK, node._on_hardware_feedback, 50)
     node.create_subscription(node.TargetInfo, node.TopicNames.VISION_TARGET, node._on_target, 20)
     node.create_subscription(node.String, node.TopicNames.VISION_TARGETS, node._on_targets_summary, 20)
     node.create_subscription(node.String, node.TopicNames.CAMERA_FRAME_SUMMARY, node._on_camera_frame_summary, 20)

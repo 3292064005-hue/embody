@@ -31,6 +31,7 @@
       "taskExecutionState",
       "runtimeFingerprint",
       "runtimeSurfaceState",
+      "runtimeAuthorityHealth",
       "runtimeConfigVersion",
       "source",
       "updatedAt",
@@ -48,7 +49,9 @@
       "grasp_runtime_service",
       "hardware_bridge",
       "calibration",
-      "profiles"
+      "profiles",
+      "lifecycle_manager",
+      "controller_manager"
     ],
     "requiredByMode": {
       "boot": [
@@ -695,8 +698,8 @@
         "officialRuntimeLane": false,
         "intendedProductLine": "validated_live",
         "effectivePublicRuntimeTier": "validated_live",
-        "taskWorkbenchVisible": true,
-        "taskExecutionInteractive": true,
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
         "checks": [
           "delivery track must remain experimental",
           "planning_capability must remain validated_live or live-candidate scoped",
@@ -814,6 +817,8 @@
         "promotionEffective": false,
         "promotionMissing": [],
         "releaseChannel": "official_active",
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": true,
         "publiclyExposed": true,
         "lanes": [
           "full_demo_preview",
@@ -834,6 +839,8 @@
         "promotionEffective": true,
         "promotionMissing": [],
         "releaseChannel": "official_active",
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": true,
         "publiclyExposed": true,
         "lanes": [
           "full_demo_authoritative",
@@ -843,14 +850,16 @@
       "validated_live": {
         "label": "Validated Live Hardware",
         "description": "已验证真机 authoritative lane；promotion 生效后公开任务工作台，当前缺失项必须显式展示且 startTask 仅按实时门禁 disabled。",
-        "taskWorkbenchVisible": true,
-        "taskExecutionInteractive": true,
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
         "runtimeBadge": "VALIDATED_LIVE",
         "promotionControlled": true,
         "promotionEffective": true,
         "promotionMissing": [],
         "releaseChannel": "experimental",
-        "publiclyExposed": true,
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": false,
+        "publiclyExposed": false,
         "lanes": []
       }
     },
@@ -1158,6 +1167,8 @@
         "taskWorkbenchVisible": false,
         "taskExecutionInteractive": false,
         "releaseChannel": "official_active",
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": true,
         "publiclyExposed": true
       },
       "validated_sim": {
@@ -1166,15 +1177,19 @@
         "taskWorkbenchVisible": true,
         "taskExecutionInteractive": true,
         "releaseChannel": "official_active",
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": true,
         "publiclyExposed": true
       },
       "validated_live": {
         "label": "Validated Live Hardware",
         "description": "已验证真机 authoritative lane；promotion 生效后公开任务工作台，当前缺失项必须显式展示且 startTask 仅按实时门禁 disabled。",
-        "taskWorkbenchVisible": true,
-        "taskExecutionInteractive": true,
+        "taskWorkbenchVisible": false,
+        "taskExecutionInteractive": false,
         "releaseChannel": "experimental",
-        "publiclyExposed": true
+        "declaredPublicCandidate": true,
+        "effectivePubliclyExposed": false,
+        "publiclyExposed": false
       }
     },
     "templates": [

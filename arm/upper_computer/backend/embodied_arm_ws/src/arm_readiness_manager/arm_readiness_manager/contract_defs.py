@@ -25,6 +25,8 @@ DEFAULT_READINESS_CHECKS = (
     'target_available',
     'calibration',
     'profiles',
+    'lifecycle_manager',
+    'controller_manager',
 )
 
 DEFAULT_STALE_AFTER = {
@@ -41,6 +43,8 @@ DEFAULT_STALE_AFTER = {
     'target_available': 2.0,
     'calibration': None,
     'profiles': None,
+    'lifecycle_manager': 2.5,
+    'controller_manager': 2.5,
 }
 
 READINESS_REQUIRED_BY_MODE = {
@@ -85,6 +89,8 @@ RUNTIME_HEALTH_REQUIRED = (
     'hardware_bridge',
     'calibration',
     'profiles',
+    'lifecycle_manager',
+    'controller_manager',
 )
 
 PUBLIC_READINESS_FIELDS = (
@@ -119,6 +125,7 @@ PUBLIC_READINESS_FIELDS = (
     'runtimeFingerprint',
     'runtimeFeatureState',
     'runtimeSurfaceState',
+    'runtimeAuthorityHealth',
     'runtimeConfigVersion',
     'source',
     'updatedAt',

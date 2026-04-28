@@ -282,6 +282,8 @@ def _build_product_line_capabilities(lane_capabilities: dict[str, dict[str, Any]
             'promotionEffective': bool(tier_payload.get('promotion_effective', False)),
             'promotionMissing': [str(value) for value in tier_payload.get('promotion_missing', [])],
             'releaseChannel': str(tier_payload.get('release_channel', 'official_active')),
+            'declaredPublicCandidate': bool(tier_payload.get('declared_public_candidate', tier_payload.get('publicly_exposed', True))),
+            'effectivePubliclyExposed': bool(tier_payload.get('effective_public_exposed', tier_payload.get('publicly_exposed', True))),
             'publiclyExposed': bool(tier_payload.get('publicly_exposed', True)),
             'lanes': lanes,
         }
@@ -339,6 +341,8 @@ def _load_task_capabilities() -> dict[str, Any]:
                 'taskWorkbenchVisible': bool(value.get('task_workbench_visible', key != 'preview')),
                 'taskExecutionInteractive': bool(value.get('task_execution_interactive', key != 'preview')),
                 'releaseChannel': str(value.get('release_channel', 'official_active')),
+                'declaredPublicCandidate': bool(value.get('declared_public_candidate', value.get('publicly_exposed', True))),
+                'effectivePubliclyExposed': bool(value.get('effective_public_exposed', value.get('publicly_exposed', True))),
                 'publiclyExposed': bool(value.get('publicly_exposed', True)),
             }
             for key, value in product_lines.items()

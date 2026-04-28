@@ -30,6 +30,7 @@
       "taskExecutionState",
       "runtimeFingerprint",
       "runtimeSurfaceState",
+      "runtimeAuthorityHealth",
       "runtimeConfigVersion",
       "source",
       "updatedAt",

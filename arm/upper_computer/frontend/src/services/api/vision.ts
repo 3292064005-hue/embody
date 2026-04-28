@@ -1,30 +1,38 @@
 import type { CalibrationProfile, CalibrationProfileVersion, VisionFrame, VisionTarget } from '@/models/vision';
-import { unwrapResponse, apiClient, putVoid, postVoid } from './client';
+import {
+  activateCalibrationProfileVersion,
+  clearVisionTargetSet,
+  getCalibrationProfile,
+  getCalibrationVersions,
+  getVisionFrame,
+  getVisionTargets,
+  putCalibrationProfile,
+} from '@/api/generated';
 
 export async function fetchTargets(): Promise<VisionTarget[]> {
-  return unwrapResponse(apiClient.get('/api/vision/targets'));
+  return getVisionTargets();
 }
 
 export async function fetchVisionFrame(): Promise<VisionFrame> {
-  return unwrapResponse(apiClient.get('/api/vision/frame'));
+  return getVisionFrame();
 }
 
 export async function fetchCalibrationProfile(): Promise<CalibrationProfile> {
-  return unwrapResponse(apiClient.get('/api/calibration/profile'));
+  return getCalibrationProfile();
 }
 
 export async function fetchCalibrationVersions(): Promise<CalibrationProfileVersion[]> {
-  return unwrapResponse(apiClient.get('/api/calibration/profiles'));
+  return getCalibrationVersions();
 }
 
 export async function saveCalibrationProfile(profile: CalibrationProfile): Promise<void> {
-  await putVoid('/api/calibration/profile', profile);
+  await putCalibrationProfile(profile);
 }
 
 export async function activateCalibrationProfile(profileId: string): Promise<void> {
-  await putVoid(`/api/calibration/profiles/${profileId}/activate`);
+  await activateCalibrationProfileVersion(profileId);
 }
 
 export async function clearVisionTargets(): Promise<void> {
-  await postVoid('/api/vision/clear-targets');
+  await clearVisionTargetSet();
 }

@@ -2,17 +2,17 @@ import type { HardwareState } from '@/models/robot';
 import type { ControllerMode } from '@/models/system';
 import {
   commandHardwareGripper,
+  getHardwareState,
   jogHardwareJoint,
   servoHardwareCartesian,
   setHardwareMode,
   type CommandTransportResult as GeneratedCommandTransportResult,
 } from '@/api/generated';
-import { unwrapResponse, apiClient } from './client';
 
 export interface HardwareCommandResult extends GeneratedCommandTransportResult {}
 
 export async function fetchHardwareState(): Promise<HardwareState> {
-  return unwrapResponse(apiClient.get('/api/hardware/state'));
+  return getHardwareState();
 }
 
 export async function commandGripper(open: boolean): Promise<HardwareCommandResult> {

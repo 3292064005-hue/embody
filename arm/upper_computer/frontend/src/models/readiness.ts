@@ -77,6 +77,20 @@ export interface ManualCommandLimits {
 }
 
 
+export interface RuntimeAuthorityHealth {
+  lifecycleActive: boolean;
+  controllerManagerActive: boolean;
+  hardwareBridgeReady: boolean;
+  traceContinuityRequired: boolean;
+  validatedLiveGateReady: boolean;
+  diagnosticsOnly: boolean;
+  controllerManagerObserved?: boolean;
+  requiredControllersActive?: boolean;
+  requiredHardwareComponentsActive?: boolean;
+  controllerManagerDetail?: string;
+}
+
+
 export interface RuntimeFeatureState {
   authoritativeRuntime: boolean;
   previewRuntime: boolean;
@@ -202,6 +216,7 @@ export interface ReadinessState {
   taskExecutionState?: TaskExecutionState;
   runtimeFingerprint?: string;
   runtimeSurfaceState?: RuntimeSurfaceState;
+  runtimeAuthorityHealth?: RuntimeAuthorityHealth;
   manualCommandLimits?: ManualCommandLimits;
   runtimeConfigVersion?: string;
   updatedAt?: string;

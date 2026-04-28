@@ -170,6 +170,62 @@ class ReadinessSnapshot:
     def command_summary(self) -> dict[str, Any]:
         return build_command_summary(self.command_policies())
 
+    def runtime_authority_health(self) -> dict[str, Any]:
+        """Return diagnostics for validated-live authority prerequisites.
+
+        Args:
+            None.
+
+        Returns:
+            dict[str, Any]: Lifecycle, ros2_control controller-manager, and
+            hardware diagnostics used by gateway projections and release evidence.
+
+        Raises:
+            Does not raise. Malformed controller-manager detail payloads are
+            reported as opaque strings and keep validated-live readiness false.
+
+        Boundary behavior:
+            Preview and simulation modes may surface this projection for
+            diagnostics, but validated-live remains fail-closed until lifecycle,
+            controller-manager, and hardware checks are all effectively healthy.
+        """
+        now = time.monotonic()
+        public = self._public_checks(now)
+
+        def ok(name: str) -> bool:
+            payload = public.get(name, {})
+            return bool(payload.get('effectiveOk', False))
+
+        controller_check = public.get('controller_manager', {})
+        controller_detail = str(controller_check.get('detail', '') or '')
+        controller_payload: dict[str, Any] = {}
+        if controller_detail.startswith('{'):
+            try:
+                parsed = json.loads(controller_detail)
+                if isinstance(parsed, dict):
+                    controller_payload = parsed
+            except Exception:
+                controller_payload = {}
+
+        controller_observed = bool(controller_payload.get('controllersObserved')) and bool(controller_payload.get('hardwareObserved'))
+        required_controllers_active = not controller_payload.get('missingControllers') and not controller_payload.get('inactiveControllers')
+        required_hardware_active = not controller_payload.get('missingHardwareComponents') and not controller_payload.get('inactiveHardwareComponents')
+        controller_manager_active = ok('controller_manager') and controller_observed and bool(required_controllers_active) and bool(required_hardware_active)
+        lifecycle_active = ok('lifecycle_manager')
+        hardware_ready = ok('hardware_bridge')
+        return {
+            'lifecycleActive': lifecycle_active,
+            'controllerManagerActive': controller_manager_active,
+            'hardwareBridgeReady': hardware_ready,
+            'traceContinuityRequired': True,
+            'validatedLiveGateReady': lifecycle_active and controller_manager_active and hardware_ready,
+            'diagnosticsOnly': False,
+            'controllerManagerObserved': controller_observed,
+            'requiredControllersActive': bool(required_controllers_active),
+            'requiredHardwareComponentsActive': bool(required_hardware_active),
+            'controllerManagerDetail': controller_detail,
+        }
+
     def as_dict(self) -> dict:
         """Serialize the readiness snapshot to a transport-safe dictionary.
 
@@ -201,6 +257,7 @@ class ReadinessSnapshot:
             'checks': checks,
             'commandPolicies': policies,
             'commandSummary': build_command_summary(policies),
+            'runtimeAuthorityHealth': self.runtime_authority_health(),
         }
 
 

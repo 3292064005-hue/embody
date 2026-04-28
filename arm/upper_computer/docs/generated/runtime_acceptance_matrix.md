@@ -109,8 +109,8 @@ This file is generated from `runtime_authority.yaml`. Do not edit manually.
 - officialRuntimeLane: `False`
 - intendedProductLine: `validated_live`
 - effectivePublicRuntimeTier: `validated_live`
-- taskWorkbenchVisible: `True`
-- taskExecutionInteractive: `True`
+- taskWorkbenchVisible: `False`
+- taskExecutionInteractive: `False`
 - acceptance checks:
   - delivery track must remain experimental
   - planning_capability must remain validated_live or live-candidate scoped

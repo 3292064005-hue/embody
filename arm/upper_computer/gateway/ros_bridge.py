@@ -243,16 +243,16 @@ class _BaseCommandExecutor:
     async def emergency_stop(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+    async def command_gripper(self, *, open_gripper: bool, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
-    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+    async def servo_cartesian(self, *, axis: str, delta: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
     async def set_mode(self, *, mode: str) -> dict[str, Any]:
@@ -285,26 +285,26 @@ class _AuthoritativeRosCommandExecutor(_BaseCommandExecutor):
         return self._normalize(await self._bridge._node.call_stop_task())
 
     async def emergency_stop(self) -> dict[str, Any]:
-        self._bridge._node.publish_hardware_command({'kind': 'ESTOP', 'task_id': 'system', 'timeout_sec': 0.2, 'producer': producer_for_command_plane('system_control'), 'command_plane': 'system_control', 'receipt_class': receipt_class_for_command_plane('system_control')})
-        return self._normalize({'accepted': True, 'message': 'hardware estop accepted'})
+        envelope = self._bridge._node.publish_hardware_command({'kind': 'ESTOP', 'task_id': 'system', 'timeout_sec': 0.2, 'producer': producer_for_command_plane('system_control'), 'command_plane': 'system_control', 'receipt_class': receipt_class_for_command_plane('system_control'), 'action': 'system.emergency_stop'})
+        return self._normalize({'accepted': True, 'message': 'hardware estop accepted', 'commandId': envelope.get('command_id'), 'authoritativeStatus': 'transport_sent', 'completionPending': True})
 
-    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
-        result = await self._bridge._node.call_start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry)
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        result = await self._bridge._node.call_start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry, trace=trace)
         result = dict(result)
         result.setdefault('executionBackbone', 'ros_runtime')
         return result
 
-    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
-        self._bridge._node.publish_hardware_command({'kind': 'OPEN_GRIPPER' if open_gripper else 'CLOSE_GRIPPER', 'task_id': 'manual', 'timeout_sec': 0.6, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control')})
-        return self._normalize({'accepted': True, 'message': 'hardware gripper command accepted', 'open': bool(open_gripper)})
+    async def command_gripper(self, *, open_gripper: bool, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        envelope = self._bridge._node.publish_hardware_command({**dict(trace or {}), 'kind': 'OPEN_GRIPPER' if open_gripper else 'CLOSE_GRIPPER', 'task_id': 'manual', 'timeout_sec': 0.6, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control'), 'action': 'hardware.gripper'})
+        return self._normalize({'accepted': True, 'message': 'hardware gripper command accepted', 'open': bool(open_gripper), 'commandId': envelope.get('command_id'), 'authoritativeStatus': 'transport_sent', 'completionPending': True})
 
-    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
-        self._bridge._node.publish_hardware_command({'kind': 'JOG_JOINT', 'task_id': 'manual', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg), 'timeout_sec': 0.4, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control')})
-        return self._normalize({'accepted': True, 'message': 'hardware joint jog command accepted', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg)})
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        envelope = self._bridge._node.publish_hardware_command({**dict(trace or {}), 'kind': 'JOG_JOINT', 'task_id': 'manual', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg), 'timeout_sec': 0.4, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control'), 'action': 'hardware.jog_joint'})
+        return self._normalize({'accepted': True, 'message': 'hardware joint jog command accepted', 'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg), 'commandId': envelope.get('command_id'), 'authoritativeStatus': 'transport_sent', 'completionPending': True})
 
-    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
-        self._bridge._node.publish_hardware_command({'kind': 'SERVO_CARTESIAN', 'task_id': 'manual', 'axis': str(axis), 'delta': float(delta), 'timeout_sec': 0.4, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control')})
-        return self._normalize({'accepted': True, 'message': 'hardware cartesian servo command accepted', 'axis': str(axis), 'delta': float(delta)})
+    async def servo_cartesian(self, *, axis: str, delta: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        envelope = self._bridge._node.publish_hardware_command({**dict(trace or {}), 'kind': 'SERVO_CARTESIAN', 'task_id': 'manual', 'axis': str(axis), 'delta': float(delta), 'timeout_sec': 0.4, 'producer': producer_for_command_plane('manual_control'), 'command_plane': 'manual_control', 'receipt_class': receipt_class_for_command_plane('manual_control'), 'action': 'hardware.servo_cartesian'})
+        return self._normalize({'accepted': True, 'message': 'hardware cartesian servo command accepted', 'axis': str(axis), 'delta': float(delta), 'commandId': envelope.get('command_id'), 'authoritativeStatus': 'transport_sent', 'completionPending': True})
 
     async def set_mode(self, *, mode: str) -> dict[str, Any]:
         return self._normalize(await self._bridge._node.call_set_mode(mode))
@@ -318,6 +318,7 @@ class _AuthoritativeRosCommandExecutor(_BaseCommandExecutor):
                 place_profile=str(payload.get('place_profile', '') or ''),
                 auto_retry=bool(payload.get('auto_retry', False)),
                 max_retry=int(payload.get('max_retry', 0) or 0),
+                trace=payload,
             )
         if action == 'task.stop':
             return await self.stop_task()
@@ -332,17 +333,19 @@ class _AuthoritativeRosCommandExecutor(_BaseCommandExecutor):
         if action == 'hardware.set_mode':
             return await self.set_mode(mode=str(payload.get('mode', '') or 'idle'))
         if action == 'hardware.gripper':
-            return await self.command_gripper(open_gripper=bool(payload.get('open', False)))
+            return await self.command_gripper(open_gripper=bool(payload.get('open', False)), trace=payload)
         if action == 'hardware.jog_joint':
             return await self.jog_joint(
                 joint_index=int(payload.get('jointIndex', 0) or 0),
                 direction=int(payload.get('direction', 1) or 1),
                 step_deg=float(payload.get('stepDeg', 0.0) or 0.0),
+                trace=payload,
             )
         if action == 'hardware.servo_cartesian':
             return await self.servo_cartesian(
                 axis=str(payload.get('axis', '') or ''),
                 delta=float(payload.get('delta', 0.0) or 0.0),
+                trace=payload,
             )
         raise RosBridgeError(f'unsupported runtime command dispatch for {command_plane}:{action}')
 
@@ -405,31 +408,31 @@ class _LocalPreviewCommandExecutor(_BaseCommandExecutor):
         self._bridge.state.set_system(coerce_system_state_aliases(system))
         return self._result(action='system.emergency_stop', message='local preview emergency-stop projection applied')
 
-    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
-        del task_type, target_selector, place_profile, auto_retry, max_retry
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        del task_type, target_selector, place_profile, auto_retry, max_retry, trace
         return {'accepted': False, 'task_id': '', 'message': 'task execution requires authoritative ROS runtime readiness', 'simulated': True, 'localPreviewOnly': True, 'commandMode': self.backbone, 'executionBackbone': 'local_preview'}
 
-    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
+    async def command_gripper(self, *, open_gripper: bool, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         self._bridge.state.set_gripper_open(open_gripper)
-        return self._result(action='gripper', message='local preview gripper projection applied', extra={'open': bool(open_gripper)})
+        return self._result(action='hardware.gripper', message='local preview gripper projection applied', extra={'open': bool(open_gripper)})
 
-    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         hardware = self._bridge.state.get_hardware()
         joints = list(hardware.get('joints', [0.0] * 6))
         joints[joint_index] = round(joints[joint_index] + direction * step_deg, 3)
         hardware['joints'] = joints
         hardware['poseName'] = f'joint_{joint_index}_jog'
         self._bridge.state.set_hardware(hardware)
-        return self._result(action='jog_joint', message='local preview joint jog projection applied', extra={'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg)})
+        return self._result(action='hardware.jog_joint', message='local preview joint jog projection applied', extra={'jointIndex': int(joint_index), 'direction': 1 if int(direction) >= 0 else -1, 'stepDeg': float(step_deg)})
 
-    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+    async def servo_cartesian(self, *, axis: str, delta: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         hardware = self._bridge.state.get_hardware()
         raw_status = dict(hardware.get('rawStatus', {}))
         raw_status['servoCartesian'] = {'axis': str(axis), 'delta': float(delta), 'appliedAt': now_iso()}
         hardware['rawStatus'] = raw_status
         hardware['poseName'] = f"servo_{axis}"
         self._bridge.state.set_hardware(hardware)
-        return self._result(action='servo_cartesian', message='local preview cartesian servo projection applied', extra={'axis': str(axis), 'delta': float(delta)})
+        return self._result(action='hardware.servo_cartesian', message='local preview cartesian servo projection applied', extra={'axis': str(axis), 'delta': float(delta)})
 
     async def set_mode(self, *, mode: str) -> dict[str, Any]:
         normalized = str(mode or 'idle').strip().lower()
@@ -451,6 +454,7 @@ class _LocalPreviewCommandExecutor(_BaseCommandExecutor):
                 place_profile=str(payload.get('place_profile', '') or ''),
                 auto_retry=bool(payload.get('auto_retry', False)),
                 max_retry=int(payload.get('max_retry', 0) or 0),
+                trace=payload,
             )
         if action == 'task.stop':
             return await self.stop_task()
@@ -465,17 +469,19 @@ class _LocalPreviewCommandExecutor(_BaseCommandExecutor):
         if action == 'hardware.set_mode':
             return await self.set_mode(mode=str(payload.get('mode', '') or 'idle'))
         if action == 'hardware.gripper':
-            return await self.command_gripper(open_gripper=bool(payload.get('open', False)))
+            return await self.command_gripper(open_gripper=bool(payload.get('open', False)), trace=payload)
         if action == 'hardware.jog_joint':
             return await self.jog_joint(
                 joint_index=int(payload.get('jointIndex', 0) or 0),
                 direction=int(payload.get('direction', 1) or 1),
                 step_deg=float(payload.get('stepDeg', 0.0) or 0.0),
+                trace=payload,
             )
         if action == 'hardware.servo_cartesian':
             return await self.servo_cartesian(
                 axis=str(payload.get('axis', '') or ''),
                 delta=float(payload.get('delta', 0.0) or 0.0),
+                trace=payload,
             )
         raise RosBridgeError(f'unsupported runtime command dispatch for {command_plane}:{action}')
 
@@ -645,16 +651,16 @@ class RosBridge:
     async def emergency_stop(self) -> dict[str, Any]:
         return await self._executor_or_raise().emergency_stop()
 
-    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
-        return await self._executor_or_raise().start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry)
+    async def start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._executor_or_raise().start_task(task_type=task_type, target_selector=target_selector, place_profile=place_profile, auto_retry=auto_retry, max_retry=max_retry, trace=trace)
 
-    async def command_gripper(self, *, open_gripper: bool) -> dict[str, Any]:
-        return await self._executor_or_raise().command_gripper(open_gripper=open_gripper)
+    async def command_gripper(self, *, open_gripper: bool, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._executor_or_raise().command_gripper(open_gripper=open_gripper, trace=trace)
 
-    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float) -> dict[str, Any]:
-        return await self._executor_or_raise().jog_joint(joint_index=joint_index, direction=direction, step_deg=step_deg)
+    async def jog_joint(self, *, joint_index: int, direction: int, step_deg: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self._executor_or_raise().jog_joint(joint_index=joint_index, direction=direction, step_deg=step_deg, trace=trace)
 
-    async def servo_cartesian(self, *, axis: str, delta: float) -> dict[str, Any]:
+    async def servo_cartesian(self, *, axis: str, delta: float, trace: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a cartesian servo command through the selected execution backbone.
 
         Args:
@@ -664,7 +670,7 @@ class RosBridge:
         Raises:
             RosBridgeError: Raised when no execution backbone is available.
         """
-        return await self._executor_or_raise().servo_cartesian(axis=axis, delta=delta)
+        return await self._executor_or_raise().servo_cartesian(axis=axis, delta=delta, trace=trace)
 
     async def dispatch_runtime_command(self, *, command_plane: str, action: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         """Dispatch one public runtime command through the unified gateway ingress.
@@ -749,17 +755,154 @@ if RCLPY_AVAILABLE:
             self.ReadinessState = ReadinessState
             self.TopicNames = TopicNames
             self._voice_event_seq = 0
+            self._pending_hardware_commands: dict[str, dict[str, Any]] = {}
             bind_runtime_ingress(self)
             self.create_timer(1.0, self._maintenance_tick)
 
-        def publish_hardware_command(self, payload: dict[str, Any]) -> None:
+        def publish_hardware_command(self, payload: dict[str, Any]) -> dict[str, Any]:
+            """Publish one hardware command envelope and retain its receipt context.
+
+            Args:
+                payload: Normalized command payload. Callers may include
+                    request/correlation ids, action, command plane, and operator role.
+
+            Returns:
+                dict[str, Any]: The exact envelope published to ROS. It always
+                    contains a stable ``command_id`` for feedback correlation.
+
+            Raises:
+                Does not raise directly; publisher exceptions propagate from ROS.
+
+            Boundary behavior:
+                Missing command metadata is filled from the command-plane contract.
+                The pending context is best-effort and feedback without a matching
+                command id is still recorded as an observed hardware receipt.
+            """
             envelope = dict(payload)
             command_plane = str(envelope.get('command_plane', 'manual_control') or 'manual_control')
             envelope.setdefault('producer', producer_for_command_plane(command_plane))
             envelope.setdefault('command_plane', command_plane)
             envelope.setdefault('receipt_class', receipt_class_for_command_plane(command_plane))
             envelope.setdefault('command_id', new_request_id('cmd'))
+            envelope.setdefault('request_id', str(envelope.get('requestId', '') or envelope.get('request_id', '') or new_request_id('hw')))
+            envelope.setdefault('correlation_id', str(envelope.get('correlationId', '') or envelope.get('correlation_id', '') or ''))
+            envelope.setdefault('task_run_id', str(envelope.get('taskRunId', '') or envelope.get('task_run_id', '') or ''))
+            envelope.setdefault('episode_id', str(envelope.get('episodeId', '') or envelope.get('episode_id', '') or envelope.get('task_run_id', '') or ''))
+            envelope.setdefault('action', str(envelope.get('action', 'hardware.command') or 'hardware.command'))
+            self._pending_hardware_commands[str(envelope['command_id'])] = {
+                'action': str(envelope.get('action', 'hardware.command') or 'hardware.command'),
+                'requestId': str(envelope.get('request_id', '') or ''),
+                'correlationId': str(envelope.get('correlation_id', '') or ''),
+                'taskRunId': str(envelope.get('task_run_id', '') or ''),
+                'episodeId': str(envelope.get('episode_id', '') or ''),
+                'taskId': str(envelope.get('task_id', '') or ''),
+                'commandPlane': command_plane,
+                'receiptClass': str(envelope.get('receipt_class', receipt_class_for_command_plane(command_plane)) or receipt_class_for_command_plane(command_plane)),
+                'role': str(envelope.get('role', 'system') or 'system'),
+                'payload': dict(envelope),
+            }
             self._hardware_cmd_pub.publish(String(data=json.dumps(envelope, ensure_ascii=False)))
+            return envelope
+
+        @staticmethod
+        def _hardware_feedback_receipt_status(status: str) -> tuple[str, bool]:
+            """Map dispatcher feedback into public command-receipt lifecycle states.
+
+            Args:
+                status: Raw dispatcher feedback status, for example sent/ack/nack/done/timeout.
+
+            Returns:
+                tuple[str, bool]: Normalized receipt status and whether the status
+                    is terminal for the pending command correlation entry.
+
+            Raises:
+                Does not raise. Unknown statuses degrade to observed/non-terminal.
+            """
+            normalized = str(status or '').strip().lower()
+            mapping = {
+                'sent': ('transport_sent', False),
+                'ack': ('acked', False),
+                'accepted': ('acked', False),
+                'retry': ('retry', False),
+                'done': ('completed', True),
+                'soft_done': ('completed', True),
+                'nack': ('rejected', True),
+                'failed': ('rejected', True),
+                'fault': ('rejected', True),
+                'timeout': ('timeout', True),
+                'canceled': ('canceled', True),
+            }
+            return mapping.get(normalized, ('observed', False))
+
+        def _on_hardware_feedback(self, msg: String) -> None:
+            """Consume dispatcher feedback and append correlated command receipts.
+
+            Args:
+                msg: JSON string published on ``TopicNames.HARDWARE_FEEDBACK``.
+
+            Returns:
+                None. Receipts are appended and websocket diagnostics are published
+                on a best-effort basis.
+
+            Raises:
+                Does not raise. Malformed payloads are ignored to keep the ROS
+                subscription thread alive.
+
+            Boundary behavior:
+                Feedback without a known command id is still recorded with a new
+                ingress request id, so diagnostics do not silently drop hardware
+                terminal events.
+            """
+            raw = str(getattr(msg, 'data', '') or '')
+            try:
+                payload = json.loads(raw) if raw else {}
+            except Exception:
+                payload = {'status': 'decode_failed', 'message': raw}
+            if not isinstance(payload, dict):
+                payload = {'status': 'invalid_payload', 'payload': payload}
+            command_id = str(payload.get('command_id', payload.get('commandId', '')) or '')
+            pending = self._pending_hardware_commands.get(command_id, {}) if command_id else {}
+            receipt_status, terminal = self._hardware_feedback_receipt_status(str(payload.get('status', '')))
+            command_plane = str(payload.get('command_plane', payload.get('commandPlane', pending.get('commandPlane', 'manual_control'))) or 'manual_control')
+            receipt_class = str(payload.get('receipt_class', payload.get('receiptClass', pending.get('receiptClass', receipt_class_for_command_plane(command_plane)))) or receipt_class_for_command_plane(command_plane))
+            action = str(payload.get('action', pending.get('action', 'hardware.feedback')) or 'hardware.feedback')
+            request_id = str(payload.get('request_id', payload.get('requestId', pending.get('requestId', ''))) or '') or new_request_id('hwfb')
+            correlation_id = str(payload.get('correlation_id', payload.get('correlationId', pending.get('correlationId', ''))) or '') or None
+            task_run_id = str(payload.get('task_run_id', payload.get('taskRunId', pending.get('taskRunId', ''))) or '') or None
+            episode_id = str(payload.get('episode_id', payload.get('episodeId', pending.get('episodeId', ''))) or '') or task_run_id
+            task_id = str(payload.get('task_id', payload.get('taskId', pending.get('taskId', ''))) or '') or None
+            message = str(payload.get('message', payload.get('result', payload.get('status', 'hardware feedback received'))) or 'hardware feedback received')
+            receipt = self._state.append_command_receipt({
+                'id': new_request_id('receipt'),
+                'timestamp': now_iso(),
+                'action': action,
+                'status': receipt_status,
+                'role': str(pending.get('role', 'system') or 'system'),
+                'requestId': request_id,
+                'correlationId': correlation_id,
+                'commandPlane': command_plane,
+                'receiptClass': receipt_class,
+                'executionBound': bool(execution_bound_for_command_plane(command_plane)),
+                'errorCode': str(payload.get('errorCode', payload.get('error_code', '')) or '') or None,
+                'operatorActionable': receipt_status in {'rejected', 'timeout', 'canceled'},
+                'message': message,
+                'payload': {**dict(payload), 'commandId': command_id, 'terminal': terminal},
+                'traceEnvelope': {
+                    'requestId': request_id,
+                    'correlationId': correlation_id,
+                    'taskId': task_id,
+                    'taskRunId': task_run_id,
+                    'episodeId': episode_id,
+                    'errorCode': str(payload.get('errorCode', payload.get('error_code', '')) or '') or None,
+                    'operatorActionable': receipt_status in {'rejected', 'timeout', 'canceled'},
+                },
+            })
+            if command_id and terminal:
+                self._pending_hardware_commands.pop(command_id, None)
+            try:
+                self._publisher.publish_topics_threadsafe('diagnostics', extra_events=[('command.receipt.created', receipt)])
+            except Exception:
+                pass
 
         def _runtime_ingress_active(self, command_plane: str) -> bool:
             return runtime_interface_active_for_command_plane(command_plane)
@@ -869,8 +1012,39 @@ if RCLPY_AVAILABLE:
                 raise RosBridgeError(str(response.message or 'set-mode command rejected'))
             return {'accepted': True, 'message': str(response.message or 'set-mode command accepted'), 'mode': str(mode)}
 
-        async def call_start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int) -> dict[str, Any]:
+        async def call_start_task(self, *, task_type: str, target_selector: str, place_profile: str, auto_retry: bool, max_retry: int, trace: dict[str, Any] | None = None) -> dict[str, Any]:
+            """Call the backend task runtime while preserving Gateway trace identity.
+
+            Args:
+                task_type: Backend task type.
+                target_selector: Target selector/category forwarded to the backend.
+                place_profile: Placement profile name.
+                auto_retry: Whether automatic retry is enabled.
+                max_retry: Retry budget.
+                trace: Gateway command payload containing request/correlation ids,
+                    task-run ids, template id, graph key, and runtime tier.
+
+            Returns:
+                dict[str, Any]: Backend acceptance payload with the original trace
+                identifiers mirrored for REST receipts and websocket projections.
+
+            Raises:
+                RosBridgeError: Propagated from service/action failures.
+
+            Boundary behavior:
+                New trace fields are set only when present on generated ROS
+                request/action classes, so old overlays fail closed by backend
+                fallback identifiers rather than crashing the gateway.
+            """
+            trace = dict(trace or {})
             task_id = f"gw-{(target_selector or task_type or 'task').replace(' ', '-')[:12]}"
+            request_id = str(trace.get('request_id', trace.get('requestId', '')) or '')
+            correlation_id = str(trace.get('correlation_id', trace.get('correlationId', '')) or '')
+            task_run_id = str(trace.get('task_run_id', trace.get('taskRunId', '')) or '')
+            episode_id = str(trace.get('episode_id', trace.get('episodeId', task_run_id)) or task_run_id)
+            template_id = str(trace.get('template_id', trace.get('templateId', '')) or '')
+            graph_key = str(trace.get('graph_key', trace.get('graphKey', '')) or '')
+            runtime_tier = str(trace.get('runtime_tier', trace.get('runtimeTier', '')) or '')
             if should_route_task_via_pick_place_action(task_type) and self._pick_place_action_client is not None and self._pick_place_action_client.wait_for_server(timeout_sec=0.1):
                 goal = PickPlaceTask.Goal()
                 payload = build_pick_place_action_goal_payload(task_id=task_id, target_selector=target_selector, place_profile=place_profile, max_retry=max_retry)
@@ -882,16 +1056,38 @@ if RCLPY_AVAILABLE:
                 goal.target_yaw = payload['target_yaw']
                 goal.place_profile = payload['place_profile']
                 goal.max_retry = payload['max_retry']
+                for field_name, value in {
+                    'request_id': request_id,
+                    'correlation_id': correlation_id,
+                    'task_run_id': task_run_id,
+                    'episode_id': episode_id,
+                    'template_id': template_id,
+                    'graph_key': graph_key,
+                    'runtime_tier': runtime_tier,
+                }.items():
+                    if hasattr(goal, field_name):
+                        setattr(goal, field_name, str(value))
                 accepted, _ = await self._send_action_goal(self._pick_place_action_client, goal, wait_for_result=False)
-                return {'accepted': bool(accepted), 'task_id': task_id if accepted else '', 'message': 'action goal accepted' if accepted else 'action goal rejected'}
+                return {'accepted': bool(accepted), 'task_id': task_id if accepted else '', 'message': 'action goal accepted' if accepted else 'action goal rejected', 'requestId': request_id, 'correlationId': correlation_id, 'taskRunId': task_run_id, 'episodeId': episode_id}
             request = StartTask.Request()
             request.task_type = str(task_type)
             request.target_selector = str(target_selector)
             request.place_profile = str(place_profile)
             request.auto_retry = bool(auto_retry)
             request.max_retry = int(max_retry)
+            for field_name, value in {
+                'request_id': request_id,
+                'correlation_id': correlation_id,
+                'task_run_id': task_run_id,
+                'episode_id': episode_id,
+                'template_id': template_id,
+                'graph_key': graph_key,
+                'runtime_tier': runtime_tier,
+            }.items():
+                if hasattr(request, field_name):
+                    setattr(request, field_name, str(value))
             response = await self._call_service(self._start_task_client, request)
-            return {'accepted': bool(response.accepted), 'task_id': str(response.task_id), 'message': str(response.message)}
+            return {'accepted': bool(response.accepted), 'task_id': str(response.task_id), 'message': str(response.message), 'requestId': request_id, 'correlationId': correlation_id, 'taskRunId': task_run_id, 'episodeId': episode_id}
 
         async def call_reload_calibration(self) -> None:
             request = Trigger.Request()

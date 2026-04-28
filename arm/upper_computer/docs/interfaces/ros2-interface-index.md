@@ -115,3 +115,19 @@
 2. 更新 generated runtime contract
 3. 更新本索引
 4. 若影响 gateway/front，对应更新 API contract 与消费层
+
+## 8. Trace and receipt contract additions
+
+`/arm/start_task` and `/arm/pick_place_task` now carry Gateway trace/context fields across the ROS boundary:
+
+- `request_id`
+- `correlation_id`
+- `task_run_id`
+- `episode_id`
+- `template_id`
+- `graph_key`
+- `runtime_tier`
+
+The task orchestrator must preserve these values when present and may generate backend-local fallback identifiers only for legacy callers.
+
+Manual hardware commands are correlated through `/arm/internal/hardware_cmd` and `/arm/hardware/feedback`. Gateway receipts should treat initial command publication as `transport_sent`; terminal status comes from dispatcher feedback keyed by `command_id`.

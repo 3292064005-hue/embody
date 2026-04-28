@@ -355,13 +355,28 @@ class FixtureReplayRuntime {
     return { accepted: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: calibration profile activated', mode: this.system.controllerMode || 'idle' };
   }
 
+  private buildCommandReceipt(action: string, message: string): Record<string, unknown> {
+    const commandId = `fixture-${action.replace(/[^a-z0-9]+/gi, '-')}-${Date.now()}`;
+    return {
+      accepted: true,
+      completionPending: true,
+      commandId,
+      authoritativeStatus: 'transport_sent',
+      receiptStatus: 'transport_sent',
+      localPreviewOnly: false,
+      commandMode: 'fixture_mock',
+      message,
+    };
+  }
+
+
   getHardwareState(): HardwareState { return clone(this.hardware); }
 
   commandGripper(open: boolean): Record<string, unknown> {
     this.hardware = { ...clone(this.hardware), gripperOpen: open };
     this.pushLog({ level: 'info', module: 'mock.fixture', event: open ? 'gripper.open' : 'gripper.close', message: `Fixture replay: gripper ${open ? 'open' : 'close'}` });
     this.pushAudit('hardware.gripper', 'accepted', `Fixture replay: gripper ${open ? 'open' : 'close'} command accepted`, { open });
-    return { accepted: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: gripper command accepted' };
+    return this.buildCommandReceipt('hardware.gripper', 'Fixture replay: gripper command accepted');
   }
 
   jogJoint(jointIndex: number, direction: -1 | 1, stepDeg: number): Record<string, unknown> {
@@ -372,7 +387,7 @@ class FixtureReplayRuntime {
     }
     this.pushLog({ level: 'warn', module: 'mock.fixture', event: 'joint.jog', message: `Fixture replay: J${jointIndex + 1} jog ${stepDeg}°` });
     this.pushAudit('hardware.jog_joint', 'accepted', 'Fixture replay: joint jog command accepted', { jointIndex, direction, stepDeg });
-    return { accepted: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: joint jog command accepted' };
+    return this.buildCommandReceipt('hardware.jog_joint', 'Fixture replay: joint jog command accepted');
   }
 
   servoCartesian(axis: string, delta: number): Record<string, unknown> {
@@ -383,7 +398,7 @@ class FixtureReplayRuntime {
     };
     this.pushLog({ level: 'warn', module: 'mock.fixture', event: 'servo.cartesian', message: `Fixture replay: servo ${axis} delta=${delta}` });
     this.pushAudit('hardware.servo_cartesian', 'accepted', 'Fixture replay: cartesian servo command accepted', { axis, delta });
-    return { accepted: true, localPreviewOnly: false, commandMode: 'fixture_mock', message: 'Fixture replay: cartesian servo command accepted' };
+    return this.buildCommandReceipt('hardware.servo_cartesian', 'Fixture replay: cartesian servo command accepted');
   }
 
   setControllerMode(mode: string): Record<string, unknown> {

@@ -58,6 +58,79 @@ _DEFAULT_RELEASE_GATES: dict[str, Any] = {
 T = TypeVar('T')
 
 
+class ConfigLoadError(RuntimeError):
+    """Raised when a critical runtime config cannot be loaded in strict mode."""
+
+
+_CONFIG_HEALTH_LOCK = RLock()
+_CONFIG_HEALTH_ISSUES: list[dict[str, Any]] = []
+
+
+def runtime_config_strict_enabled() -> bool:
+    """Return whether critical config failures should fail fast.
+
+    Args:
+        None.
+
+    Returns:
+        bool: True when strict loading is enabled. The explicit
+        ``EMBODIED_ARM_CONFIG_STRICT`` environment variable wins; otherwise
+        release/production build profiles enable strict loading by default.
+
+    Raises:
+        Does not raise. Malformed environment values fail closed to False
+        unless the build profile itself is release/production.
+
+    Boundary behavior:
+        Accepted truthy values are ``1/true/yes/on``; accepted falsy values are
+        ``0/false/no/off``.
+    """
+    raw = str(os.getenv('EMBODIED_ARM_CONFIG_STRICT', '') or '').strip().lower()
+    if raw in {'1', 'true', 'yes', 'on'}:
+        return True
+    if raw in {'0', 'false', 'no', 'off'}:
+        return False
+    profile = str(os.getenv('EMBODIED_ARM_BUILD_PROFILE', os.getenv('VITE_BUILD_PROFILE', '')) or '').strip().lower()
+    return profile in {'release', 'production'}
+
+
+def _record_config_issue(*, path: Path, phase: str, message: str, critical: bool) -> None:
+    issue = {
+        'path': str(path),
+        'file': path.name,
+        'phase': str(phase),
+        'message': str(message),
+        'critical': bool(critical),
+    }
+    with _CONFIG_HEALTH_LOCK:
+        _CONFIG_HEALTH_ISSUES.append(issue)
+        del _CONFIG_HEALTH_ISSUES[:-40]
+
+
+def get_runtime_config_health() -> dict[str, Any]:
+    """Return the current runtime-config health projection.
+
+    Args:
+        None.
+
+    Returns:
+        dict[str, Any]: Strict-mode state plus recent config load issues.
+
+    Raises:
+        Does not raise.
+
+    Boundary behavior:
+        Health is a diagnostic projection. Critical config load failures still
+        raise at load sites when strict mode is active.
+    """
+    strict = runtime_config_strict_enabled()
+    with _CONFIG_HEALTH_LOCK:
+        issues = [dict(issue) for issue in _CONFIG_HEALTH_ISSUES]
+    has_critical = any(bool(issue.get('critical')) for issue in issues)
+    status = 'failed' if strict and has_critical else ('degraded' if issues else 'healthy')
+    return {'strictEnabled': strict, 'status': status, 'issues': issues}
+
+
 @dataclass(frozen=True)
 class _FileSignature:
     tokens: tuple[tuple[str, bool, int, int], ...]
@@ -77,10 +150,11 @@ class _ConfigFileCache(Generic[T]):
     last parsed payload.
     """
 
-    def __init__(self, path_getter: Callable[[], Path | tuple[Path, ...]], default_factory: Callable[[], T], parser: Callable[[Any], T]):
+    def __init__(self, path_getter: Callable[[], Path | tuple[Path, ...]], default_factory: Callable[[], T], parser: Callable[[Any], T], *, critical: bool = True):
         self._path_getter = path_getter
         self._default_factory = default_factory
         self._parser = parser
+        self._critical = bool(critical)
         self._entry: _CachedValue[T] | None = None
         self._lock = RLock()
 
@@ -104,13 +178,27 @@ class _ConfigFileCache(Generic[T]):
         return '|'.join(f'{name}:{int(exists)}:{mtime}:{size}' for name, exists, mtime, size in signature.tokens)
 
     def _read(self, path: Path) -> T:
+        strict = runtime_config_strict_enabled()
+        if not path.exists():
+            if self._critical:
+                message = 'critical config file is missing'
+                _record_config_issue(path=path, phase='read', message=message, critical=True)
+                if strict:
+                    raise ConfigLoadError(f'{message}: {path}')
+            return self._default_factory()
         try:
-            payload = yaml.safe_load(path.read_text(encoding='utf-8')) if path.exists() else None
-        except Exception:
+            payload = yaml.safe_load(path.read_text(encoding='utf-8'))
+        except Exception as exc:
+            _record_config_issue(path=path, phase='read', message=str(exc), critical=self._critical)
+            if self._critical and strict:
+                raise ConfigLoadError(f'failed to read critical config {path}: {exc}') from exc
             return self._default_factory()
         try:
             return self._parser(payload)
-        except Exception:
+        except Exception as exc:
+            _record_config_issue(path=path, phase='parse', message=str(exc), critical=self._critical)
+            if self._critical and strict:
+                raise ConfigLoadError(f'failed to parse critical config {path}: {exc}') from exc
             return self._default_factory()
 
     def _paths(self) -> tuple[Path, ...]:
@@ -162,7 +250,10 @@ def _parse_default_calibration(payload: Any) -> dict[str, Any]:
 def _load_runtime_authority_payload() -> dict[str, Any]:
     try:
         return load_runtime_authority(RUNTIME_AUTHORITY_PATH)
-    except Exception:
+    except Exception as exc:
+        _record_config_issue(path=RUNTIME_AUTHORITY_PATH, phase='parse', message=str(exc), critical=True)
+        if runtime_config_strict_enabled():
+            raise ConfigLoadError(f'failed to load runtime authority config {RUNTIME_AUTHORITY_PATH}: {exc}') from exc
         return {}
 
 
@@ -282,7 +373,7 @@ _RUNTIME_PROMOTION_RECEIPT_CACHE = _ConfigFileCache(
 )
 _RUNTIME_PROFILE_CACHE = _ConfigFileCache(lambda: RUNTIME_PROFILE_PATH, lambda: _parse_runtime_profile_catalog(None), _parse_runtime_profile_catalog)
 _RUNTIME_LANE_ALIAS_CACHE = _ConfigFileCache(lambda: RUNTIME_LANE_ALIAS_PATH, dict, _parse_runtime_lane_aliases)
-_RELEASE_GATE_CACHE = _ConfigFileCache(lambda: effective_target_runtime_gate_path(), lambda: dict(_DEFAULT_RELEASE_GATES), _parse_release_gate_details)
+_RELEASE_GATE_CACHE = _ConfigFileCache(lambda: effective_target_runtime_gate_path(), lambda: dict(_DEFAULT_RELEASE_GATES), _parse_release_gate_details, critical=False)
 _FIRMWARE_SEMANTIC_PROFILE_CACHE = _ConfigFileCache(lambda: FIRMWARE_SEMANTIC_PROFILES_PATH, lambda: _parse_firmware_semantic_profiles(None), _parse_firmware_semantic_profiles)
 _MANUAL_COMMAND_LIMITS_CACHE = _ConfigFileCache(lambda: SAFETY_LIMITS_PATH, lambda: dict(_DEFAULT_MANUAL_COMMAND_LIMITS), _parse_manual_command_limits)
 
@@ -325,7 +416,7 @@ def load_place_profiles() -> dict[str, dict[str, float]]:
         dict[str, dict[str, float]]: Normalized place-profile map keyed by profile name.
 
     Raises:
-        Does not raise. Invalid or missing config degrades to built-in defaults.
+        ConfigLoadError: In strict mode when the placement profile file is missing, unreadable, or invalid.
     """
     return _PLACE_PROFILE_CACHE.load()
 
@@ -343,7 +434,7 @@ def load_runtime_promotion_receipt_details() -> dict[str, dict[str, Any]]:
         promotion state and missing evidence markers.
 
     Raises:
-        Does not raise. Missing or invalid config degrades to fail-closed defaults.
+        ConfigLoadError: In strict mode when critical promotion/runtime-authority config is missing, unreadable, or invalid.
     """
     return _RUNTIME_PROMOTION_RECEIPT_CACHE.load()
 
@@ -355,7 +446,7 @@ def load_runtime_promotion_receipts() -> dict[str, bool]:
         dict[str, bool]: Effective public-tier promotion booleans keyed by runtime tier.
 
     Raises:
-        Does not raise. Missing or invalid config degrades to fail-closed defaults.
+        ConfigLoadError: Propagates from detailed promotion receipt loading in strict mode.
     """
     details = load_runtime_promotion_receipt_details()
     return {str(name): bool(item.get('effective', item.get('promoted', False))) for name, item in details.items() if isinstance(item, dict)}

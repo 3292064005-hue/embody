@@ -110,6 +110,8 @@ product_lines:
     task_workbench_visible: false
     task_execution_interactive: false
     release_channel: official_active
+    declared_public_candidate: true
+    effective_public_exposed: true
     publicly_exposed: true
   validated_sim:
     label: Validated Simulation
@@ -117,15 +119,19 @@ product_lines:
     task_workbench_visible: true
     task_execution_interactive: true
     release_channel: official_active
+    declared_public_candidate: true
+    effective_public_exposed: true
     publicly_exposed: true
   validated_live:
     label: Validated Live Hardware
     description: 已验证真机 authoritative lane；promotion 生效后公开任务工作台，当前缺失项必须显式展示且 startTask
       仅按实时门禁 disabled。
-    task_workbench_visible: true
-    task_execution_interactive: true
+    task_workbench_visible: false
+    task_execution_interactive: false
     release_channel: experimental
-    publicly_exposed: true
+    declared_public_candidate: true
+    effective_public_exposed: false
+    publicly_exposed: false
 templates:
 - id: pick-red
   template_version: 2

@@ -15,37 +15,48 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.16.0'
+      - name: Repository root smoke
+        run: |
+          pwd
+          find . -maxdepth 2 -type d | sort | sed -n '1,80p'
+          test -f scripts/verify_repository.py
+          test -d frontend
+          test -d backend/embodied_arm_ws
       - run: npm install -g npm@10.9.2
       - name: Install Playwright Chromium
         run: |
-          cd upper_computer/frontend
+          cd frontend
           npx playwright install --with-deps chromium
       - name: Frontend typecheck entrypoint smoke
         run: |
-          cd upper_computer
           bash scripts/ensure_frontend_deps.sh
           cd frontend
           npm run typecheck:test
-      - run: python upper_computer/scripts/verify_repository.py --profile repo
+      - name: Documentation truth boundary lint
+        run: python scripts/check_doc_truth_boundaries.py
+      - name: Repository release gate
+        run: python scripts/verify_repository.py --profile repo
 
   ros-humble:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Repository root smoke
+        run: |
+          pwd
+          test -f scripts/materialize_active_ros_overlay.py
+          test -d backend/embodied_arm_ws
       - name: Materialize active overlay
         run: |
-          cd upper_computer
           ACTIVE_OVERLAY=$(python scripts/materialize_active_ros_overlay.py --print-root)
           echo "ACTIVE_OVERLAY=$ACTIVE_OVERLAY" >> "$GITHUB_ENV"
       - name: Install ROS deps
-        run: |
-          cd upper_computer
-          rosdep install --from-paths "$ACTIVE_OVERLAY/src" --ignore-src -r -y --rosdistro humble
+        run: rosdep install --from-paths "$ACTIVE_OVERLAY/src" --ignore-src -r -y --rosdistro humble
       - name: Build overlay
         run: |
-          cd upper_computer/backend/embodied_arm_ws
+          cd backend/embodied_arm_ws
           colcon build --symlink-install
       - name: ROS smoke
         run: |
-          cd upper_computer/backend/embodied_arm_ws
+          cd backend/embodied_arm_ws
           pytest -q tests/test_ros_launch_smoke.py tests/test_gateway_dispatcher_feedback_roundtrip.py

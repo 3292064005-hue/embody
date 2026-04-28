@@ -23,6 +23,8 @@ product_lines:
     fail_closed_task_execution_interactive: false
     runtime_badge: VALIDATED_LIVE
     promotion_controlled: true
+    declared_public_candidate: true
+    effective_public_exposed: false
     public_exposed: true
     release_channel: experimental
 planning_backends:

@@ -575,6 +575,66 @@ class MotionExecutorNode(ManagedLifecycleNode):
         self._last_execution['commandId'] = str(command.get('command_id', ''))
         self._last_execution['stageName'] = str(command.get('stage', ''))
 
+    def _requires_authoritative_planning(self) -> bool:
+        """Return whether the active execution transport requires authoritative plans.
+
+        Args:
+            None.
+
+        Returns:
+            bool: True for simulation/live transports that can forward motion
+            commands beyond protocol shadowing.
+
+        Raises:
+            Does not raise.
+
+        Boundary behavior:
+            Protocol-simulator transport remains preview-compatible. It may shadow
+            contract-only plans for UI visualization, but authoritative transports
+            must reject them before command generation.
+        """
+        return str(self._transport_adapter.execution_mode) in {
+            'authoritative_simulation',
+            'ros2_control_candidate',
+            'ros2_control_live',
+        }
+
+    def _planning_authority_violation(self, stages: list[StagePlan]) -> str | None:
+        """Validate that executable stages carry authoritative planning evidence.
+
+        Args:
+            stages: Parsed plan stages from the planner result.
+
+        Returns:
+            str | None: Rejection reason when a stage is contract-only, otherwise
+            None.
+
+        Raises:
+            Does not raise. Malformed artifacts are treated as rejection reasons.
+
+        Boundary behavior:
+            Gripper-only stages are exempt because they do not carry kinematic
+            planning artifacts. All motion stages require planner.authoritative
+            truth and must not report ``contract_only`` capability.
+        """
+        if not self._requires_authoritative_planning():
+            return None
+        for stage in stages:
+            if stage.kind == 'gripper':
+                continue
+            artifact = stage.payload.get('planningArtifact')
+            if not isinstance(artifact, dict):
+                return f'stage {stage.name or stage.kind} missing authoritative planning artifact'
+            planner = artifact.get('planner', {}) if isinstance(artifact.get('planner'), dict) else {}
+            metadata = artifact.get('metadata', {}) if isinstance(artifact.get('metadata'), dict) else {}
+            capability = str(planner.get('capabilityMode', metadata.get('planningCapability', '')) or '')
+            if capability == 'contract_only':
+                return f'stage {stage.name or stage.kind} uses contract-only planning output'
+            authoritative = bool(planner.get('authoritative', metadata.get('planningAuthoritative', False)))
+            if not authoritative:
+                return f'stage {stage.name or stage.kind} planning output is not authoritative'
+        return None
+
     def _dispatch_commands(self, commands: list[dict[str, Any]]) -> None:
         """Dispatch validated commands into controller state and runtime transport.
 
@@ -625,6 +685,18 @@ class MotionExecutorNode(ManagedLifecycleNode):
                 task_id=task_id,
                 status='rejected',
                 message=validation.message,
+                correlation_id=correlation_id,
+                task_run_id=task_run_id,
+            ))
+            return
+        authority_violation = self._planning_authority_violation(stages)
+        if authority_violation:
+            self._last_execution = {'status': 'rejected', 'taskId': task_id, 'message': authority_violation, 'stageCount': validation.stage_count}
+            self._publish_execution_status(build_execution_status(
+                request_id=request_id,
+                task_id=task_id,
+                status='rejected',
+                message=authority_violation,
                 correlation_id=correlation_id,
                 task_run_id=task_run_id,
             ))

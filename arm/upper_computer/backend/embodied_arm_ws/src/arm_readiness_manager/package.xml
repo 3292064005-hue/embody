@@ -12,6 +12,7 @@
   <depend>arm_common</depend>
   <depend>arm_backend_common</depend>
   <depend>arm_interfaces</depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>

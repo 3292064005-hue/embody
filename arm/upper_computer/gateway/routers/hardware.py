@@ -8,7 +8,7 @@ from ..api_common import request_id_from_request
 from ..command_service import CommandExecutionPlan, GatewayCommandService
 from ..errors import ErrorCode, FailureClass
 from ..lifespan import context_from_request
-from ..models import wrap_response
+from ..models import new_correlation_id, wrap_response
 from ..schemas import GripperRequest, JogJointRequest, ServoCartesianRequest, SetModeRequest
 from ..security import validate_gripper_command, validate_jog_command, validate_servo_command
 
@@ -69,10 +69,12 @@ async def post_set_mode(body: SetModeRequest, request: Request):
 async def post_gripper(body: GripperRequest, request: Request):
     ctx = context_from_request(request)
     request_id = request_id_from_request(request)
+    correlation_id = new_correlation_id('hw')
+    payload = {**body.model_dump(), 'request_id': request_id, 'correlation_id': correlation_id, 'action': 'hardware.gripper'}
     command = GatewayCommandService(request, ctx=ctx)
     plan = CommandExecutionPlan(
         action='hardware.gripper',
-        payload=body.model_dump(),
+        payload=payload,
         log_module='gateway.hardware',
         success_message=lambda result: 'gripper command projected locally (preview only)' if result.get('localPreviewOnly') else 'gripper command accepted; wait for hardware state feedback',
         runtime_topics=('hardware',),
@@ -96,18 +98,20 @@ async def post_gripper(body: GripperRequest, request: Request):
         effective_ctx.state.set_gripper_open(body.open)
         return None
 
-    result = await command.execute(replace(plan, state_mutator=mutate_gripper), lambda: ctx.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.gripper', payload=body.model_dump()))
-    return wrap_response(result, request_id)
+    result = await command.execute(replace(plan, state_mutator=mutate_gripper), lambda: ctx.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.gripper', payload=payload))
+    return wrap_response(result, request_id, correlation_id)
 
 
 @router.post('/api/hardware/jog-joint')
 async def post_jog_joint(body: JogJointRequest, request: Request):
     ctx = context_from_request(request)
     request_id = request_id_from_request(request)
+    correlation_id = new_correlation_id('hw')
+    payload = {**body.model_dump(), 'request_id': request_id, 'correlation_id': correlation_id, 'action': 'hardware.jog_joint'}
     command = GatewayCommandService(request, ctx=ctx)
     plan = CommandExecutionPlan(
         action='hardware.jog_joint',
-        payload=body.model_dump(),
+        payload=payload,
         log_level='warn',
         log_module='gateway.hardware',
         success_message=lambda result: 'jog command projected locally (preview only)' if result.get('localPreviewOnly') else 'jog command accepted; wait for hardware state feedback',
@@ -127,8 +131,8 @@ async def post_jog_joint(body: JogJointRequest, request: Request):
         receipt_class=plan.receipt_class,
         execution_bound=plan.execution_bound,
     )
-    result = await command.execute(plan, lambda: ctx.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.jog_joint', payload=body.model_dump()))
-    return wrap_response(result, request_id)
+    result = await command.execute(plan, lambda: ctx.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.jog_joint', payload=payload))
+    return wrap_response(result, request_id, correlation_id)
 
 
 @router.post('/api/hardware/servo-cartesian')
@@ -151,11 +155,12 @@ async def post_servo_cartesian(body: ServoCartesianRequest, request: Request):
     """
     ctx = context_from_request(request)
     request_id = request_id_from_request(request)
-    CTX = ctx
+    correlation_id = new_correlation_id('hw')
+    payload = {**body.model_dump(), 'request_id': request_id, 'correlation_id': correlation_id, 'action': 'hardware.servo_cartesian'}
     command = GatewayCommandService(request, ctx=ctx)
     plan = CommandExecutionPlan(
         action='hardware.servo_cartesian',
-        payload=body.model_dump(),
+        payload=payload,
         log_level='warn',
         log_module='gateway.hardware',
         success_message=lambda result: 'servo command projected locally (preview only)' if result.get('localPreviewOnly') else 'servo command accepted; wait for hardware state feedback',
@@ -193,7 +198,7 @@ async def post_servo_cartesian(body: ServoCartesianRequest, request: Request):
         Boundary behavior:
             The helper performs no state mutation; it only forwards the validated transport call.
         """
-        return await CTX.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.servo_cartesian', payload=body.model_dump())
+        return await ctx.ros.dispatch_runtime_command(command_plane='manual_control', action='hardware.servo_cartesian', payload=payload)
 
     result = await command.execute(plan, invoke_servo)
-    return wrap_response(result, request_id)
+    return wrap_response(result, request_id, correlation_id)

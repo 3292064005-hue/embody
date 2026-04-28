@@ -68,7 +68,7 @@ async function resolveMock(config: AxiosRequestConfig): Promise<AxiosResponse> {
     const profileId = String(body.profileId || profileIdFromUrl || '');
     return buildResponse(config, mockRuntime.activateCalibrationProfile(profileId));
   }
-  if (method === 'post' && url === '/api/calibration/reload') return buildResponse(config, mockRuntime.getCalibrationProfile());
+  if (method === 'post' && url === '/api/calibration/reload') return buildResponse(config, null);
 
   if (method === 'get' && url === '/api/hardware/state') return buildResponse(config, mockRuntime.getHardwareState());
   if (method === 'post' && url === '/api/hardware/gripper') return buildResponse(config, mockRuntime.commandGripper(Boolean(body.open)));

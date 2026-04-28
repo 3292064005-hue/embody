@@ -670,20 +670,61 @@ class TaskOrchestratorNode(ManagedLifecycleNode):
             self._enter_fault(code, detail=message)
 
     def _handle_start_task(self, request: StartTask.Request, response: StartTask.Response) -> StartTask.Response:
+        """Accept a Gateway task request while preserving upstream trace identity.
+
+        Args:
+            request: ROS service request. Newer interface revisions may include
+                Gateway trace identifiers and task graph context; older overlays are
+                accepted through fallback-generated identifiers.
+            response: ROS service response to populate.
+
+        Returns:
+            StartTask.Response: Acceptance result and backend task id.
+
+        Raises:
+            No exception is intentionally raised for missing trace fields; malformed
+            optional values are converted to strings and the task is evaluated by
+            the normal runtime policy path.
+
+        Boundary behavior:
+            Gateway-provided request/correlation/task-run/episode ids take
+            precedence. Missing ids are generated locally to keep older service
+            clients compatible without breaking the audit envelope.
+        """
         task_id = f'task-{uuid.uuid4().hex[:8]}'
-        graph_contract = resolve_task_graph_contract(str(request.task_type), target_selector=str(request.target_selector))
+        task_type = str(request.task_type)
+        target_selector = str(request.target_selector)
+        graph_contract = resolve_task_graph_contract(task_type, target_selector=target_selector)
+        request_id = str(getattr(request, 'request_id', '') or f'req-{task_id}')
+        correlation_id = str(getattr(request, 'correlation_id', '') or f'corr-{task_id}')
+        task_run_id = str(getattr(request, 'task_run_id', '') or f'taskrun-{task_id}')
+        episode_id = str(getattr(request, 'episode_id', '') or task_run_id or f'episode-{task_id}')
+        template_id = str(getattr(request, 'template_id', '') or '')
+        graph_key = str(getattr(request, 'graph_key', '') or graph_contract.get('graphKey', ''))
+        runtime_tier = str(getattr(request, 'runtime_tier', '') or '')
+        metadata = dict(graph_contract)
+        metadata.update({
+            'requestId': request_id,
+            'correlationId': correlation_id,
+            'taskRunId': task_run_id,
+            'episodeId': episode_id,
+            'templateId': template_id,
+            'graphKey': graph_key,
+            'runtimeTier': runtime_tier,
+            'traceSource': 'gateway' if getattr(request, 'request_id', '') else 'backend_fallback',
+        })
         queued = TaskRequest(
             task_id=task_id,
-            task_type=str(request.task_type),
-            target_selector=str(request.target_selector),
+            task_type=task_type,
+            target_selector=target_selector,
             place_profile=str(request.place_profile or 'default'),
             auto_retry=bool(request.auto_retry),
             max_retry=max(0, int(request.max_retry or 2)),
-            metadata=dict(graph_contract),
-            request_id=f'req-{task_id}',
-            correlation_id=f'corr-{task_id}',
-            task_run_id=f'taskrun-{task_id}',
-            episode_id=f'episode-{task_id}',
+            metadata=metadata,
+            request_id=request_id,
+            correlation_id=correlation_id,
+            task_run_id=task_run_id,
+            episode_id=episode_id,
         )
         decision = self._enqueue_task_request(queued)
         response.accepted = bool(decision.accepted)

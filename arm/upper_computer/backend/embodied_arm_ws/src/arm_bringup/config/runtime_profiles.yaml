@@ -426,7 +426,7 @@ real_validated_live:
   validated_live_backbone_declared: true
   validated_live_backbone_missing: []
   public_runtime_tier: validated_live
-  task_workbench_visible: true
-  task_execution_interactive: true
+  task_workbench_visible: false
+  task_execution_interactive: false
   runtime_delivery_track: experimental
   official_runtime_lane: false

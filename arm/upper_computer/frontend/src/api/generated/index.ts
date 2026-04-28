@@ -1,6 +1,14 @@
 import type { ApiResponse } from '@/models/api';
 import { ApiClientError } from '@/models/api';
 import { apiClient, unwrapResponse } from '@/services/api/client';
+import type { DiagnosticsSummary } from '@/models/diagnostics';
+import type { HardwareState } from '@/models/robot';
+import type { SystemState } from '@/models/system';
+import type { TaskHistoryEntry, TaskProgress, TaskTemplate } from '@/models/task';
+import type { VisionTarget, VisionFrame, CalibrationProfile, CalibrationProfileVersion } from '@/models/vision';
+import type { LogEvent } from '@/models/log';
+import type { CommandAuditRecord } from '@/models/audit';
+import type { CommandReceiptRecord } from '@/models/receipt';
 
 export type CommandDecision = {
   allowed: boolean;
@@ -38,6 +46,19 @@ export type CommandSummary = {
   blockedCount: number;
 };
 
+export type RuntimeAuthorityHealth = {
+  lifecycleActive: boolean;
+  controllerManagerActive: boolean;
+  hardwareBridgeReady: boolean;
+  traceContinuityRequired: boolean;
+  validatedLiveGateReady: boolean;
+  diagnosticsOnly: boolean;
+  controllerManagerObserved?: boolean;
+  requiredControllersActive?: boolean;
+  requiredHardwareComponentsActive?: boolean;
+  controllerManagerDetail?: string;
+};
+
 export type RuntimeReadiness = {
   mode: string;
   controllerMode?: string;
@@ -54,6 +75,7 @@ export type RuntimeReadiness = {
   checks: Record<string, ReadinessCheck>;
   commandPolicies?: Record<string, ReadinessCommandPolicy>;
   commandSummary?: CommandSummary;
+  runtimeAuthorityHealth?: RuntimeAuthorityHealth;
   source?: string;
   simulated?: boolean;
   authoritative?: boolean;
@@ -90,6 +112,7 @@ export type CommandTransportResult = {
   operationId?: string;
   requestId?: string;
   receiptId?: string;
+  commandId?: string;
   correlationId?: string | null;
 };
 
@@ -143,17 +166,31 @@ export class RuntimeApiError extends Error {
 }
 
 export const routes = {
+  systemSummary: '/api/system/summary',
   systemReadiness: '/api/system/readiness',
   systemHome: '/api/system/home',
   systemResetFault: '/api/system/reset-fault',
   systemRecover: '/api/system/recover',
   systemEmergencyStop: '/api/system/emergency-stop',
+  taskCurrent: '/api/task/current',
+  taskTemplates: '/api/task/templates',
+  taskHistory: '/api/task/history',
   taskStart: '/api/task/start',
   taskStop: '/api/task/stop',
+  hardwareState: '/api/hardware/state',
   hardwareSetMode: '/api/hardware/set-mode',
   hardwareGripper: '/api/hardware/gripper',
   hardwareJogJoint: '/api/hardware/jog-joint',
   hardwareServoCartesian: '/api/hardware/servo-cartesian',
+  visionTargets: '/api/vision/targets',
+  visionFrame: '/api/vision/frame',
+  visionClearTargets: '/api/vision/clear-targets',
+  calibrationProfile: '/api/calibration/profile',
+  calibrationProfiles: '/api/calibration/profiles',
+  diagnosticsSummary: '/api/diagnostics/summary',
+  logsEvents: '/api/logs/events',
+  logsAudit: '/api/logs/audit',
+  logsReceipts: '/api/logs/receipts',
 } as const;
 
 function asRuntimeApiError(error: unknown): RuntimeApiError {
@@ -182,91 +219,93 @@ function asRuntimeApiError(error: unknown): RuntimeApiError {
   return new RuntimeApiError(500, error instanceof Error ? error.message : '请求失败');
 }
 
-export async function fetchSystemReadiness(): Promise<RuntimeReadiness> {
+async function getEnvelope<T>(url: string): Promise<T> {
   try {
-    return await unwrapResponse<RuntimeReadiness>(apiClient.get<ApiResponse<RuntimeReadiness>>(routes.systemReadiness));
+    return await unwrapResponse<T>(apiClient.get<ApiResponse<T>>(url));
   } catch (error) {
     throw asRuntimeApiError(error);
   }
 }
 
-export async function startTask(payload: StartTaskRequest = {}): Promise<StartTaskDecision> {
+async function postEnvelope<T>(url: string, payload?: unknown): Promise<T> {
   try {
-    return await unwrapResponse<StartTaskDecision>(apiClient.post<ApiResponse<StartTaskDecision>>(routes.taskStart, payload));
+    return await unwrapResponse<T>(apiClient.post<ApiResponse<T>>(url, payload));
   } catch (error) {
     throw asRuntimeApiError(error);
   }
 }
 
-
-export async function stopTaskCommand(): Promise<CommandTransportResult> {
+async function putEnvelope<T>(url: string, payload?: unknown): Promise<T> {
   try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.taskStop));
+    return await unwrapResponse<T>(apiClient.put<ApiResponse<T>>(url, payload));
   } catch (error) {
     throw asRuntimeApiError(error);
   }
 }
 
-export async function homeRobotCommand(): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.systemHome));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export const getSystemSummary = (): Promise<SystemState> => getEnvelope<SystemState>(routes.systemSummary);
+export const fetchSystemReadiness = (): Promise<RuntimeReadiness> => getEnvelope<RuntimeReadiness>(routes.systemReadiness);
+export const getCurrentTask = (): Promise<TaskProgress | null> => getEnvelope<TaskProgress | null>(routes.taskCurrent);
+export const getTaskTemplates = (): Promise<TaskTemplate[]> => getEnvelope<TaskTemplate[]>(routes.taskTemplates);
+export const getTaskHistory = (): Promise<TaskHistoryEntry[]> => getEnvelope<TaskHistoryEntry[]>(routes.taskHistory);
+export const getHardwareState = (): Promise<HardwareState> => getEnvelope<HardwareState>(routes.hardwareState);
+export const getVisionTargets = (): Promise<VisionTarget[]> => getEnvelope<VisionTarget[]>(routes.visionTargets);
+export const getVisionFrame = (): Promise<VisionFrame> => getEnvelope<VisionFrame>(routes.visionFrame);
+export const getCalibrationProfile = (): Promise<CalibrationProfile> => getEnvelope<CalibrationProfile>(routes.calibrationProfile);
+export const getCalibrationVersions = (): Promise<CalibrationProfileVersion[]> => getEnvelope<CalibrationProfileVersion[]>(routes.calibrationProfiles);
+export const getDiagnosticsSummary = (): Promise<DiagnosticsSummary> => getEnvelope<DiagnosticsSummary>(routes.diagnosticsSummary);
+export const getLogEvents = (): Promise<LogEvent[]> => getEnvelope<LogEvent[]>(routes.logsEvents);
+export const getAuditLogRecords = (): Promise<CommandAuditRecord[]> => getEnvelope<CommandAuditRecord[]>(routes.logsAudit);
+export const getCommandReceiptRecords = (): Promise<CommandReceiptRecord[]> => getEnvelope<CommandReceiptRecord[]>(routes.logsReceipts);
+
+export async function putCalibrationProfile(profile: CalibrationProfile): Promise<void> {
+  await putEnvelope<null>(routes.calibrationProfile, profile);
 }
 
-export async function resetFaultCommand(): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.systemResetFault));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export async function activateCalibrationProfileVersion(profileId: string): Promise<void> {
+  await putEnvelope<null>(`/api/calibration/profiles/${encodeURIComponent(profileId)}/activate`);
 }
 
-export async function recoverRuntimeCommand(): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.systemRecover));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export async function clearVisionTargetSet(): Promise<void> {
+  await postEnvelope<null>(routes.visionClearTargets);
 }
 
-export async function emergencyStopCommand(): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.systemEmergencyStop));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export function startTask(payload: StartTaskRequest = {}): Promise<StartTaskDecision> {
+  return postEnvelope<StartTaskDecision>(routes.taskStart, payload);
 }
 
-export async function setHardwareMode(payload: { mode: string }): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.hardwareSetMode, payload));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export function stopTaskCommand(): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.taskStop);
 }
 
-export async function commandHardwareGripper(payload: { open: boolean }): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.hardwareGripper, payload));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export function homeRobotCommand(): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.systemHome);
 }
 
-export async function jogHardwareJoint(payload: { jointIndex: number; direction: -1 | 1; stepDeg: number }): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.hardwareJogJoint, payload));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export function resetFaultCommand(): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.systemResetFault);
 }
 
-export async function servoHardwareCartesian(payload: { axis: string; delta: number }): Promise<CommandTransportResult> {
-  try {
-    return await unwrapResponse<CommandTransportResult>(apiClient.post<ApiResponse<CommandTransportResult>>(routes.hardwareServoCartesian, payload));
-  } catch (error) {
-    throw asRuntimeApiError(error);
-  }
+export function recoverRuntimeCommand(): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.systemRecover);
+}
+
+export function emergencyStopCommand(): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.systemEmergencyStop);
+}
+
+export function setHardwareMode(payload: { mode: string }): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.hardwareSetMode, payload);
+}
+
+export function commandHardwareGripper(payload: { open: boolean }): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.hardwareGripper, payload);
+}
+
+export function jogHardwareJoint(payload: { jointIndex: number; direction: -1 | 1; stepDeg: number }): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.hardwareJogJoint, payload);
+}
+
+export function servoHardwareCartesian(payload: { axis: string; delta: number }): Promise<CommandTransportResult> {
+  return postEnvelope<CommandTransportResult>(routes.hardwareServoCartesian, payload);
 }

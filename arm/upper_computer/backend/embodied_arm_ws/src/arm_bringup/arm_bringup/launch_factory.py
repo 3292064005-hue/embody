@@ -822,7 +822,39 @@ def _runtime_core_nodes(*, configs: dict[str, LaunchConfiguration], lane: Runtim
     return nodes
 
 
-def _experimental_nodes() -> list:
+EXPERIMENTAL_EXTENSION_REGISTRY: dict[str, dict[str, str]] = {
+    'full_demo_preview': {
+        'state': 'disabled',
+        'reason': 'full-demo extension packages are not registered in the authoritative runtime contract',
+    },
+    'full_demo_authoritative': {
+        'state': 'disabled',
+        'reason': 'validated full-demo extension requires explicit runtime-contract registration before launch injection',
+    },
+}
+
+
+def _experimental_nodes(lane_name: str = '') -> list:
+    """Return registered experimental launch nodes for a runtime lane.
+
+    Args:
+        lane_name: Runtime lane requesting experimental extensions.
+
+    Returns:
+        list: Launch actions for explicitly registered experimental extensions.
+
+    Raises:
+        Does not raise.
+
+    Boundary behavior:
+        Unknown or disabled lanes return an empty list and do not expose an
+        executable surface. Experimental launch injection is opt-in through
+        ``EXPERIMENTAL_EXTENSION_REGISTRY`` to avoid presenting empty extension
+        hooks as available capabilities.
+    """
+    registry_item = EXPERIMENTAL_EXTENSION_REGISTRY.get(str(lane_name), {})
+    if registry_item.get('state') != 'active':
+        return []
     return []
 
 
@@ -831,7 +863,7 @@ def build_runtime_launch_description(mode: str = 'sim_preview', *, include_mock_
     declarations, configs = _common_arguments(lane)
     nodes = _runtime_core_nodes(configs=configs, lane=lane)
     if lane.name in {'full_demo_preview', 'full_demo_authoritative'}:
-        nodes.extend(_experimental_nodes())
+        nodes.extend(_experimental_nodes(lane.name))
     actions = [*declarations, *nodes]
     try:
         description = LaunchDescription(actions)

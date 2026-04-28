@@ -1,6 +1,6 @@
 import type { DiagnosticsSummary } from '@/models/diagnostics';
-import { unwrapResponse, apiClient } from './client';
+import { getDiagnosticsSummary } from '@/api/generated';
 
 export async function fetchDiagnosticsSummary(): Promise<DiagnosticsSummary> {
-  return unwrapResponse(apiClient.get('/api/diagnostics/summary'));
+  return getDiagnosticsSummary();
 }

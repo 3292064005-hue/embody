@@ -112,6 +112,25 @@ class TaskActionFacade:
 
     @staticmethod
     def build_pick_place_request_from_action(action_request: Any, *, task_id: str) -> TaskRequest:
+        """Translate a PickPlace action goal into the canonical task request.
+
+        Args:
+            action_request: Action goal instance from ROS. Interface revisions may
+                provide Gateway trace fields; older goals are accepted through
+                deterministic backend fallback identifiers.
+            task_id: Backend task id already assigned by the action facade.
+
+        Returns:
+            TaskRequest: Canonical task runtime input with trace and graph context.
+
+        Raises:
+            No exception is raised for missing optional action fields; values are
+            normalized to strings and fall back to backend-generated identifiers.
+
+        Boundary behavior:
+            The method preserves Gateway trace fields when available and keeps
+            legacy PickPlace goals compatible by deriving backend-local trace ids.
+        """
         raw_target_type = str(getattr(action_request, 'target_type', '') or '').strip()
         raw_target_id = str(getattr(action_request, 'target_id', '') or '').strip()
         legacy_task_type = {
@@ -126,6 +145,24 @@ class TaskActionFacade:
         task_type = legacy_task_type or 'pick_place'
         target_selector = raw_target_id if legacy_task_type else (raw_target_type or raw_target_id)
         graph_contract = resolve_task_graph_contract(task_type, target_selector=target_selector)
+        request_id = str(getattr(action_request, 'request_id', '') or f'req-{task_id}')
+        correlation_id = str(getattr(action_request, 'correlation_id', '') or f'corr-{task_id}')
+        task_run_id = str(getattr(action_request, 'task_run_id', '') or f'taskrun-{task_id}')
+        episode_id = str(getattr(action_request, 'episode_id', '') or task_run_id or f'episode-{task_id}')
+        template_id = str(getattr(action_request, 'template_id', '') or '')
+        graph_key = str(getattr(action_request, 'graph_key', '') or graph_contract.get('graphKey', ''))
+        runtime_tier = str(getattr(action_request, 'runtime_tier', '') or '')
+        metadata = dict(graph_contract)
+        metadata.update({
+            'requestId': request_id,
+            'correlationId': correlation_id,
+            'taskRunId': task_run_id,
+            'episodeId': episode_id,
+            'templateId': template_id,
+            'graphKey': graph_key,
+            'runtimeTier': runtime_tier,
+            'traceSource': 'gateway' if getattr(action_request, 'request_id', '') else 'backend_fallback',
+        })
         return TaskRequest(
             task_id=task_id,
             task_type=task_type,
@@ -133,7 +170,11 @@ class TaskActionFacade:
             place_profile=str(getattr(action_request, 'place_profile', '') or 'default'),
             auto_retry=True,
             max_retry=max(0, int(getattr(action_request, 'max_retry', 0) or 0)),
-            metadata=dict(graph_contract),
+            metadata=metadata,
+            request_id=request_id,
+            correlation_id=correlation_id,
+            task_run_id=task_run_id,
+            episode_id=episode_id,
         )
 
     def pick_place_goal_callback(self, goal_request) -> Any:

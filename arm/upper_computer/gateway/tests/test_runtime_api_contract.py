@@ -55,8 +55,11 @@ def test_runtime_api_contract_matches_public_gateway_routes() -> None:
     assert 'export type RuntimeReadiness' in generated
     assert 'export type StartTaskRequest' in generated
     assert 'export class RuntimeApiError extends Error' in generated
-    assert 'return await unwrapResponse<RuntimeReadiness>(apiClient.get<ApiResponse<RuntimeReadiness>>(routes.systemReadiness));' in generated
-    assert 'return await unwrapResponse<StartTaskDecision>(apiClient.post<ApiResponse<StartTaskDecision>>(routes.taskStart, payload));' in generated
+    assert 'function asRuntimeApiError(error: unknown): RuntimeApiError' in generated
+    assert 'async function getEnvelope<T>(url: string): Promise<T>' in generated
+    assert 'async function postEnvelope<T>(url: string, payload?: unknown): Promise<T>' in generated
+    assert 'fetchSystemReadiness = (): Promise<RuntimeReadiness> => getEnvelope<RuntimeReadiness>(routes.systemReadiness)' in generated
+    assert 'return postEnvelope<StartTaskDecision>(routes.taskStart, payload);' in generated
     assert 'throw asRuntimeApiError(error);' in generated
 
     system_service = system_service_path.read_text(encoding='utf-8')

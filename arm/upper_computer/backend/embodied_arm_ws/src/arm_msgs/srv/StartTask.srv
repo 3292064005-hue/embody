@@ -3,6 +3,13 @@ string target_selector
 string place_profile
 bool auto_retry
 uint8 max_retry
+string request_id
+string correlation_id
+string task_run_id
+string episode_id
+string template_id
+string graph_key
+string runtime_tier
 ---
 bool accepted
 string task_id
